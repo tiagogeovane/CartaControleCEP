@@ -50,6 +50,13 @@ class TestCartaXsStrategy:
         assert lc_s == 5.0
         assert lic_s < lc_s < lsc_s
 
+    def test_calcular_limites_dispersao_polimorfico(self, strategy: CartaXsStrategy):
+        historico_desvios = [5.0] * 10
+        lic, lc, lsc = strategy.calcular_limites_dispersao(historico_desvios, n=10)
+        assert lc == 5.0
+        assert lic < lc < lsc
+
+
     def test_calcular_c4_validacoes_e_assintotica(self, strategy: CartaXsStrategy):
         with pytest.raises(ValueError, match="Fator c4 requer n >= 2"):
             strategy.calcular_c4(1)

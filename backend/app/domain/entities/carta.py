@@ -40,10 +40,17 @@ class CartaControle:
         return [s.estatisticas.media_x for s in self.subgrupos]
 
     def obter_historico_dispersoes(self) -> list[float]:
-        """Retorna a lista de dispersões (R ou s) conforme o tipo de carta configurado."""
-        if "X_S" in self.tipo_carta:
+        """Retorna a lista de dispersões (R, s ou MR) conforme o tipo de carta configurado."""
+        tipo = self.tipo_carta.upper().replace("-", "_")
+        if "X_S" in tipo or "XS" in tipo or (self.tamanho_subgrupo > 10 and "X_R" in tipo):
             return [s.estatisticas.desvio_s for s in self.subgrupos]
+        if "I_MR" in tipo or "IMR" in tipo or "INDIVIDUAL" in tipo or (self.tamanho_subgrupo == 1 and "X_R" in tipo):
+            medias = self.obter_historico_medias()
+            if len(medias) < 2:
+                return []
+            return [abs(medias[i] - medias[i - 1]) for i in range(1, len(medias))]
         return [s.estatisticas.amplitude_r for s in self.subgrupos]
+
 
     def obter_ultimas_medias(self, quantidade: int) -> list[float]:
         """Retorna as médias dos últimos N subgrupos para avaliação de anomalias."""

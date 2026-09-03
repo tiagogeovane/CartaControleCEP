@@ -15,6 +15,15 @@ class CartaXRStrategy(ICartaControleStrategy):
     Utiliza fatores de correção empíricos baseados na amplitude amostral (R).
     """
 
+    tipo_carta: str = "X_R"
+    nome_carta: str = "X-barra e R"
+    nome_posicao: str = "Carta X-barra (Médias)"
+    nome_dispersao: str = "Carta R (Amplitudes)"
+    rotulo_posicao: str = r"Média do Subgrupo ($\bar{X}$)"
+    rotulo_dispersao: str = "Amplitude (R)"
+    sigla_dispersao: str = "R"
+
+
     # Fatores normalizados da distribuição normal (Montgomery, 8ª ed.)
     A2_TABLE: ClassVar[dict[int, float]] = {
         2: 1.880,
@@ -159,3 +168,12 @@ class CartaXRStrategy(ICartaControleStrategy):
         lic_r = d3 * r_barra
         lsc_r = d4 * r_barra
         return lic_r, r_barra, lsc_r
+
+    def calcular_limites_dispersao(
+        self,
+        historico_dispersoes: Sequence[float],
+        n: int,
+    ) -> tuple[float, float, float]:
+        """Calcula os limites da carta R auxiliar: (LIC_R, LC_R, LSC_R)."""
+        return self.calcular_limites_amplitude(historico_dispersoes, n)
+

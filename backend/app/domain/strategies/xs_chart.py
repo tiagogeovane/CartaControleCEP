@@ -16,6 +16,15 @@ class CartaXsStrategy(ICartaControleStrategy):
     onde o desvio padrão amostral 's' é um estimador de variabilidade mais eficiente que 'R'.
     """
 
+    tipo_carta: str = "X_S"
+    nome_carta: str = "X-barra e s"
+    nome_posicao: str = "Carta X-barra (Médias)"
+    nome_dispersao: str = "Carta s (Desvios Padrão)"
+    rotulo_posicao: str = r"Média do Subgrupo ($\bar{X}$)"
+    rotulo_dispersao: str = "Desvio Padrão (s)"
+    sigla_dispersao: str = "s"
+
+
     @staticmethod
     def calcular_c4(n: int) -> float:
         """Calcula o coeficiente exato c4(n) via função Gamma ou aproximação assintótica."""
@@ -108,3 +117,12 @@ class CartaXsStrategy(ICartaControleStrategy):
         lic_s = b3 * s_barra
         lsc_s = b4 * s_barra
         return lic_s, s_barra, lsc_s
+
+    def calcular_limites_dispersao(
+        self,
+        historico_dispersoes: Sequence[float],
+        n: int,
+    ) -> tuple[float, float, float]:
+        """Calcula os limites da carta s auxiliar: (LIC_s, LC_s, LSC_s)."""
+        return self.calcular_limites_desvio(historico_dispersoes, n)
+

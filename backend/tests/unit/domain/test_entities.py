@@ -76,6 +76,34 @@ class TestCartaControleEntity:
         carta.adicionar_subgrupo(sub)
         assert carta.obter_historico_dispersoes() == [0.5]
 
+    def test_obter_historico_dispersoes_tipo_imr(self):
+        carta = CartaControle(processo_id=uuid4(), tipo_carta="I_MR", tamanho_subgrupo=1)
+        sub1 = Subgrupo(
+            carta_id=carta.id,
+            numero_subgrupo=1,
+            valores_brutos=[10.0],
+            estatisticas=EstatisticasSubgrupo(media_x=10.0, amplitude_r=0.0, desvio_s=0.0),
+        )
+        sub2 = Subgrupo(
+            carta_id=carta.id,
+            numero_subgrupo=2,
+            valores_brutos=[12.5],
+            estatisticas=EstatisticasSubgrupo(media_x=12.5, amplitude_r=0.0, desvio_s=0.0),
+        )
+        sub3 = Subgrupo(
+            carta_id=carta.id,
+            numero_subgrupo=3,
+            valores_brutos=[9.0],
+            estatisticas=EstatisticasSubgrupo(media_x=9.0, amplitude_r=0.0, desvio_s=0.0),
+        )
+        carta.adicionar_subgrupo(sub1)
+        carta.adicionar_subgrupo(sub2)
+        carta.adicionar_subgrupo(sub3)
+
+        # Amplitudes móveis: |12.5 - 10.0| = 2.5, |9.0 - 12.5| = 3.5
+        assert carta.obter_historico_dispersoes() == [2.5, 3.5]
+
+
     def test_obter_ultimas_medias(self):
         carta = CartaControle(processo_id=uuid4(), tipo_carta="X_R", tamanho_subgrupo=3)
         for i in range(1, 6):
@@ -205,6 +233,12 @@ class TestCartaStrategyFactory:
     def test_transicao_xr_para_xs_quando_n_maior_que_10(self):
         # Se tipo for X-R mas n > 10, transiciona para X-s
         assert isinstance(CartaStrategyFactory.fabricar("X-R", 12), CartaXsStrategy)
+
+    def test_transicao_para_imr_quando_n_igual_a_1(self):
+        # RN01: n = 1 em cartas por variáveis transiciona para I-MR
+        assert isinstance(CartaStrategyFactory.fabricar("X-R", 1), CartaIMRStrategy)
+        assert isinstance(CartaStrategyFactory.fabricar("X-S", 1), CartaIMRStrategy)
+
 
     def test_rejeita_tipo_nao_registrado(self):
         with pytest.raises(ValueError, match="Tipo de carta de controle não registrado: 'CARTA_DESCONHECIDA'"):

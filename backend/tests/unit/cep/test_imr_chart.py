@@ -44,6 +44,18 @@ class TestCartaIMRStrategy:
         assert lc_mr == 3.0
         assert pytest.approx(lsc_mr, abs=1e-2) == 3.0 * 3.267
 
+    def test_calcular_limites_dispersao_polimorfico(self, strategy: CartaIMRStrategy):
+        historico_mr = [2.0, 4.0]  # média = 3.0
+        lic, lc, lsc = strategy.calcular_limites_dispersao(historico_mr, n=1)
+        assert lic == 0.0
+        assert lc == 3.0
+        assert pytest.approx(lsc, abs=1e-2) == 3.0 * 3.267
+
+    def test_calcular_limites_dispersao_rejeita_vazio(self, strategy: CartaIMRStrategy):
+        with pytest.raises(ValueError, match="Histórico de dispersões não pode estar vazio"):
+            strategy.calcular_limites_dispersao([], n=1)
+
+
     def test_calcular_amplitudes_moveis_insuficiente(self, strategy: CartaIMRStrategy):
         assert strategy.calcular_amplitudes_moveis([10.0]) == []
         assert strategy.calcular_amplitudes_moveis([]) == []

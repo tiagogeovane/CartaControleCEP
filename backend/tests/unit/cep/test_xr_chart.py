@@ -50,6 +50,14 @@ class TestCartaXRStrategy:
         assert pytest.approx(lc_r, abs=1e-4) == 0.0325
         assert pytest.approx(lsc_r, abs=1e-4) == 0.0687
 
+    def test_calcular_limites_dispersao_polimorfico(self, strategy: CartaXRStrategy):
+        historico_dispersoes = [0.0325]
+        lic, lc, lsc = strategy.calcular_limites_dispersao(historico_dispersoes, n=5)
+        assert lic == 0.0
+        assert pytest.approx(lc, abs=1e-4) == 0.0325
+        assert pytest.approx(lsc, abs=1e-4) == 0.0687
+
+
     def test_rejeita_historico_vazio(self, strategy: CartaXRStrategy):
         with pytest.raises(ValueError, match="não pode estar vazio"):
             strategy.calcular_limites([], [], n=5)

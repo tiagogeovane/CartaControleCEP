@@ -101,10 +101,13 @@ class CartaStrategyFactory:
 
         chave = cls._normalizar_tipo(tipo_carta)
 
-        # 2. Transição estatística recomendada (Montgomery): para n > 10 em cartas X-R,
-        # adota-se a estratégia X-s por maior precisão amostral de 's'.
-        if tamanho_subgrupo is not None and tamanho_subgrupo > 10 and chave in ("X_R", "XR"):
-            return cls.resolver_por_tamanho(tamanho_subgrupo)
+        # 2. Transições estatísticas recomendadas (Montgomery / RN01):
+        if tamanho_subgrupo is not None:
+            if tamanho_subgrupo == 1 and chave in ("X_R", "XR", "X_S", "XS"):
+                return cls.resolver_por_tamanho(1)
+            if tamanho_subgrupo > 10 and chave in ("X_R", "XR"):
+                return cls.resolver_por_tamanho(tamanho_subgrupo)
+
 
         # 3. Lookup no registry com erro explícito
         if chave not in cls._registry:

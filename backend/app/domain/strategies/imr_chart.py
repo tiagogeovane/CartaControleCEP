@@ -14,6 +14,15 @@ class CartaIMRStrategy(ICartaControleStrategy):
     medições contínuas automatizadas ou testes destrutivos de alto custo.
     """
 
+    tipo_carta: str = "I_MR"
+    nome_carta: str = "I-MR (Valores Individuais e Amplitude Móvel)"
+    nome_posicao: str = "Carta de Valores Individuais (X)"
+    nome_dispersao: str = "Carta de Amplitude Móvel (MR)"
+    rotulo_posicao: str = "Valor Individual (X)"
+    rotulo_dispersao: str = "Amplitude Móvel (MR)"
+    sigla_dispersao: str = "MR"
+
+
     D2_N2: float = 1.128  # d2 para n=2 (janela da amplitude móvel)
     D4_N2: float = 3.267  # D4 para n=2
     D3_N2: float = 0.0    # D3 para n=2
@@ -77,3 +86,15 @@ class CartaIMRStrategy(ICartaControleStrategy):
         lic_mr = self.D3_N2 * mr_barra
         lsc_mr = self.D4_N2 * mr_barra
         return lic_mr, mr_barra, lsc_mr
+
+    def calcular_limites_dispersao(
+        self,
+        historico_dispersoes: Sequence[float],
+        n: int = 1,
+    ) -> tuple[float, float, float]:
+        """Calcula os limites da carta MR auxiliar: (LIC_MR, LC_MR, LSC_MR)."""
+        if not historico_dispersoes:
+            raise ValueError("Histórico de dispersões não pode estar vazio.")
+        mr_barra = float(np.mean(historico_dispersoes))
+        return self.calcular_limites_mr(mr_barra)
+
