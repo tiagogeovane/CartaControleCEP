@@ -1,0 +1,41 @@
+# Histórico de Features e Alterações do Backend (`feats/`)
+
+Esta pasta armazena o registro descritivo e versionado de todas as implementações, módulos e alterações de arquitetura desenvolvidos no backend do **Sistema de Controle Estatístico de Processos (CEP)**.
+
+---
+
+## 1. Propósito e Diretrizes
+
+O objetivo deste diretório é manter a rastreabilidade técnica do projeto, servindo como documentação viva de cada entrega descrita no [Roadmap.md](../Roadmap.md). Cada documento de alteração detalha:
+
+1. **Contexto e Motivação:** A fase correspondente do roadmap e o problema de engenharia resolvido.
+2. **Decisões Arquiteturais:** Padrões de projeto (GoF, Clean Architecture, SOLID) e trade-offs técnicos adotados.
+3. **Arquivos Criados e Modificados:** Relação completa com a responsabilidade de cada artefato.
+4. **Validação e Testes:** Comprovação de testes unitários, integração, linter e status de execução.
+5. **Impacto e Próximos Passos:** Conexão com as fases subsequentes da aplicação.
+
+---
+
+## 2. Padrão de Nomenclatura dos Documentos
+
+Os documentos de feature devem seguir o padrão sequencial:
+
+```text
+XX-descricao-da-feature.md
+```
+
+* Onde `XX` indica o identificador da fase ou ordem cronológica de entrega (`00`, `01`, `02`, etc.).
+
+---
+
+## 3. Índice de Features Implementadas
+
+| Identificador | Título / Entrega | Fase no Roadmap | Status | Documento |
+| :---: | :--- | :---: | :---: | :--- |
+| **FEAT-00** | Setup de Ambiente, Infraestrutura Base & Docker | Fase 0 | ✅ Concluído | [00-setup-infraestrutura.md](./00-setup-infraestrutura.md) |
+| **FEAT-01** | Domínio Puro & Motor de Cálculo Estatístico | Fase 1 | 🔲 Planejado | *A ser criado na execução da Fase 1* |
+| **FEAT-02** | Persistência Relacional & Repositórios (MySQL 8.0) | Fase 2 | 🔲 Planejado | *A ser criado na execução da Fase 2* |
+| **FEAT-03** | Camada de Aplicação & Orquestração de Subgrupos | Fase 3 | 🔲 Planejado | *A ser criado na execução da Fase 3* |
+| **FEAT-04** | WebSockets Nativos & Notificação Reativa | Fase 4 | 🔲 Planejado | *A ser criado na execução da Fase 4* |
+| **FEAT-05** | Camada de Apresentação & API REST (FastAPI) | Fase 5 | 🔲 Planejado | *A ser criado na execução da Fase 5* |
+| **FEAT-06** | Simulador IoT, Testes E2E & Containerização Final | Fase 6 | 🔲 Planejado | *A ser criado na execução da Fase 6* |
