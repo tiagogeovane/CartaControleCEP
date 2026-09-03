@@ -217,12 +217,8 @@ Para detalhes aprofundados sobre a especificação técnica e arquitetural, cons
 
 ---
 
-## 👤 Autor
+## 👤 Colaboradores
 
-**Tiago Geovane da Silva Sousa**
 - **GitHub:** [@TiagoUNB](https://github.com/TiagoUNB)
-- **Perfil:** [https://github.com/TiagoUNB](https://github.com/TiagoUNB)
 
 ---
-
-*Desenvolvido com foco em alta performance, robustez matemática e padrões modernos de engenharia de software.*

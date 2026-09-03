@@ -33,7 +33,7 @@ XX-descricao-da-feature.md
 | Identificador | Título / Entrega | Fase no Roadmap | Status | Documento |
 | :---: | :--- | :---: | :---: | :--- |
 | **FEAT-00** | Setup de Ambiente, Infraestrutura Base & Docker | Fase 0 | ✅ Concluído | [00-setup-infraestrutura.md](./00-setup-infraestrutura.md) |
-| **FEAT-01** | Domínio Puro & Motor de Cálculo Estatístico | Fase 1 | 🔲 Planejado | *A ser criado na execução da Fase 1* |
+| **FEAT-01** | Domínio Puro & Motor de Cálculo Estatístico | Fase 1 | ✅ Concluído | [01-dominio-motor-cep.md](./01-dominio-motor-cep.md) |
 | **FEAT-02** | Persistência Relacional & Repositórios (MySQL 8.0) | Fase 2 | 🔲 Planejado | *A ser criado na execução da Fase 2* |
 | **FEAT-03** | Camada de Aplicação & Orquestração de Subgrupos | Fase 3 | 🔲 Planejado | *A ser criado na execução da Fase 3* |
 | **FEAT-04** | WebSockets Nativos & Notificação Reativa | Fase 4 | 🔲 Planejado | *A ser criado na execução da Fase 4* |

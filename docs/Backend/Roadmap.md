@@ -287,9 +287,9 @@ A tabela abaixo serve como painel de controle do progresso da implementação:
 | Fase | Etapa / Entregável | Critério de Aceite | Status |
 | :---: | :--- | :--- | :---: |
 | **0** | Setup de Ambiente & Docker | MySQL 8.0 rodando no Docker e dependências instaladas | ✅ Concluído |
-| **1** | Value Objects & Entidades | Classes com invariantes de validação e dataclasses imutáveis | 🔲 Pendente |
-| **1** | Motor CEP ($\bar{X}-R, \bar{X}-s, I-MR$) | Testes unitários com NumPy batendo 100% com dados tabelados | 🔲 Pendente |
-| **1** | Detector das 8 Regras de Nelson | Testes unitários comprovando detecção precisa de anomalias | 🔲 Pendente |
+| **1** | Value Objects & Entidades | Classes com invariantes de validação e dataclasses imutáveis | ✅ Concluído |
+| **1** | Motor CEP ($\bar{X}-R, \bar{X}-s, I-MR$) | Testes unitários com NumPy batendo 100% com dados tabelados | ✅ Concluído |
+| **1** | Detector das 8 Regras de Nelson | Testes unitários comprovando detecção precisa de anomalias | ✅ Concluído |
 | **2** | Modelos ORM & Migrações Alembic | Tabelas criadas no MySQL com JSON nativo e FKs | 🔲 Pendente |
 | **2** | Repositórios SQLAlchemy | Operações de leitura/escrita assíncronas validadas | 🔲 Pendente |
 | **3** | `ProcessamentoSubgrupoService` | Fluxo orquestrado integrando motor, domínio e persistência | 🔲 Pendente |

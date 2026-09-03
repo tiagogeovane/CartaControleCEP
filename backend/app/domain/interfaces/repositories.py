@@ -1,0 +1,59 @@
+from abc import ABC, abstractmethod
+from collections.abc import Sequence
+from uuid import UUID
+
+from app.domain.entities.carta import CartaControle
+from app.domain.entities.processo import Processo
+from app.domain.entities.subgrupo import Subgrupo
+
+
+class ICartaControleRepository(ABC):
+    """Contrato abstrato para persistência e recuperação de Cartas de Controle."""
+
+    @abstractmethod
+    async def obter_por_id(self, carta_id: UUID) -> CartaControle | None:
+        """Recupera uma carta pelo seu identificador único, incluindo seu histórico."""
+
+    @abstractmethod
+    async def salvar(self, carta: CartaControle) -> CartaControle:
+        """Persiste ou atualiza os dados da carta de controle."""
+
+    @abstractmethod
+    async def listar_todas(self, processo_id: UUID | None = None) -> list[CartaControle]:
+        """Lista cartas cadastradas, opcionalmente filtradas por processo."""
+
+
+class ISubgrupoRepository(ABC):
+    """Contrato abstrato para persistência e recuperação de Subgrupos e medições."""
+
+    @abstractmethod
+    async def salvar(self, subgrupo: Subgrupo) -> Subgrupo:
+        """Persiste um subgrupo com suas medições brutas e violações associadas."""
+
+    @abstractmethod
+    async def salvar_em_lote(self, subgrupos: Sequence[Subgrupo]) -> list[Subgrupo]:
+        """Persiste múltiplos subgrupos em transação única (importação em lote)."""
+
+    @abstractmethod
+    async def listar_por_carta(
+        self,
+        carta_id: UUID,
+        limite: int | None = None,
+    ) -> list[Subgrupo]:
+        """Recupera os subgrupos de uma carta ordenados cronologicamente."""
+
+
+class IProcessoRepository(ABC):
+    """Contrato abstrato para gestão de Processos Industriais."""
+
+    @abstractmethod
+    async def obter_por_id(self, processo_id: UUID) -> Processo | None:
+        pass
+
+    @abstractmethod
+    async def salvar(self, processo: Processo) -> Processo:
+        pass
+
+    @abstractmethod
+    async def listar_todos(self) -> list[Processo]:
+        pass
