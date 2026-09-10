@@ -1,0 +1,15 @@
+.venv
+backend/.venv
+frontend/node_modules
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.coverage
+htmlcov
+.ruff_cache
+.git
+.gitignore
+*.log
+.DS_Store

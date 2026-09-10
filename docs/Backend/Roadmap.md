@@ -290,10 +290,10 @@ A tabela abaixo serve como painel de controle do progresso da implementação:
 | **1** | Value Objects & Entidades | Classes com invariantes de validação e dataclasses imutáveis | ✅ Concluído |
 | **1** | Motor CEP ($\bar{X}-R, \bar{X}-s, I-MR$) | Testes unitários com NumPy batendo 100% com dados tabelados | ✅ Concluído |
 | **1** | Detector das 8 Regras de Nelson | Testes unitários comprovando detecção precisa de anomalias | ✅ Concluído |
-| **2** | Modelos ORM & Migrações Alembic | Tabelas criadas no MySQL com JSON nativo e FKs | 🔲 Pendente |
-| **2** | Repositórios SQLAlchemy | Operações de leitura/escrita assíncronas validadas | 🔲 Pendente |
-| **3** | `ProcessamentoSubgrupoService` | Fluxo orquestrado integrando motor, domínio e persistência | 🔲 Pendente |
-| **4** | `ConnectionManager` & WebSocket | Conexão simultânea e broadcast de evento JSON validado | 🔲 Pendente |
-| **5** | Schemas Pydantic & Routers REST | Endpoints `/cartas`, `/amostras` e `/auth` operacionais | 🔲 Pendente |
-| **6** | Script Simulador & Testes E2E | Emissão contínua a cada 2s com visualização de anomalias | 🔲 Pendente |
-| **6** | Dockerfile & Docker Compose | Backend e Banco subindo coordenados via `docker compose up` | 🔲 Pendente |
+| **2** | Modelos ORM & Migrações Alembic | Tabelas criadas no MySQL com JSON nativo e FKs | ✅ Concluído |
+| **2** | Repositórios SQLAlchemy | Operações de leitura/escrita assíncronas validadas | ✅ Concluído |
+| **3** | `ProcessamentoSubgrupoService` | Fluxo orquestrado integrando motor, domínio e persistência | ✅ Concluído |
+| **4** | `ConnectionManager` & WebSocket | Conexão simultânea e broadcast de evento JSON validado | ✅ Concluído |
+| **5** | Schemas Pydantic & Routers REST | Endpoints `/cartas`, `/amostras` e `/auth` operacionais | ✅ Concluído |
+| **6** | Script Simulador & Testes E2E | Emissão contínua a cada 2s com visualização de anomalias | ✅ Concluído |
+| **6** | Dockerfile & Docker Compose | Backend e Banco subindo coordenados via `docker compose up` | ✅ Concluído |

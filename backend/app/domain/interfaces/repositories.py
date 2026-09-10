@@ -5,6 +5,8 @@ from uuid import UUID
 from app.domain.entities.carta import CartaControle
 from app.domain.entities.processo import Processo
 from app.domain.entities.subgrupo import Subgrupo
+from app.domain.entities.usuario import Usuario
+from app.domain.value_objects.limites import LimitesControle
 
 
 class ICartaControleRepository(ABC):
@@ -21,6 +23,14 @@ class ICartaControleRepository(ABC):
     @abstractmethod
     async def listar_todas(self, processo_id: UUID | None = None) -> list[CartaControle]:
         """Lista cartas cadastradas, opcionalmente filtradas por processo."""
+
+    @abstractmethod
+    async def atualizar_limites(
+        self,
+        carta_id: UUID,
+        novos_limites: LimitesControle,
+    ) -> None:
+        """Atualização pontual dos limites calculados da carta."""
 
 
 class ISubgrupoRepository(ABC):
@@ -56,4 +66,24 @@ class IProcessoRepository(ABC):
 
     @abstractmethod
     async def listar_todos(self) -> list[Processo]:
+        pass
+
+
+class IUsuarioRepository(ABC):
+    """Contrato abstrato para gestão e consulta de Usuários."""
+
+    @abstractmethod
+    async def obter_por_id(self, usuario_id: UUID) -> Usuario | None:
+        pass
+
+    @abstractmethod
+    async def obter_por_email(self, email: str) -> Usuario | None:
+        pass
+
+    @abstractmethod
+    async def salvar(self, usuario: Usuario) -> Usuario:
+        pass
+
+    @abstractmethod
+    async def listar_todos(self) -> list[Usuario]:
         pass

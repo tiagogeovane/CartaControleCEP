@@ -10,6 +10,7 @@ from app.domain.interfaces import (
     IProcessoRepository,
     ISubgrupoObserver,
     ISubgrupoRepository,
+    IUsuarioRepository,
 )
 from app.domain.value_objects.estatisticas import EstatisticasSubgrupo
 
@@ -20,6 +21,7 @@ def test_interfaces_are_abstract():
         ICartaControleRepository,
         ISubgrupoRepository,
         IProcessoRepository,
+        IUsuarioRepository,
         ISubgrupoObserver,
     ]
     for iface in interfaces:
@@ -49,7 +51,9 @@ async def test_subgrupo_observer_implementation():
         carta_id=carta.id,
         numero_subgrupo=1,
         valores_brutos=[10.0, 11.0, 10.5, 9.5, 10.0],
-        estatisticas=EstatisticasSubgrupo(media_x=10.2, amplitude_r=1.5, desvio_s=0.5, valores_brutos=(10.0, 11.0, 10.5, 9.5, 10.0)),
+        estatisticas=EstatisticasSubgrupo(
+            media_x=10.2, amplitude_r=1.5, desvio_s=0.5, valores_brutos=(10.0, 11.0, 10.5, 9.5, 10.0)
+        ),
     )
 
     await observer.notificar_processamento(carta, subgrupo)
@@ -62,6 +66,7 @@ def test_repository_interfaces_method_signatures():
     assert "obter_por_id" in carta_methods
     assert "salvar" in carta_methods
     assert "listar_todas" in carta_methods
+    assert "atualizar_limites" in carta_methods
 
     subgrupo_methods = dict(inspect.getmembers(ISubgrupoRepository, predicate=inspect.isfunction))
     assert "salvar" in subgrupo_methods
@@ -72,3 +77,9 @@ def test_repository_interfaces_method_signatures():
     assert "obter_por_id" in processo_methods
     assert "salvar" in processo_methods
     assert "listar_todos" in processo_methods
+
+    usuario_methods = dict(inspect.getmembers(IUsuarioRepository, predicate=inspect.isfunction))
+    assert "obter_por_id" in usuario_methods
+    assert "obter_por_email" in usuario_methods
+    assert "salvar" in usuario_methods
+    assert "listar_todos" in usuario_methods

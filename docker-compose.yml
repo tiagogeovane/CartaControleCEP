@@ -23,6 +23,29 @@ services:
       retries: 10
       start_period: 10s
 
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cep_backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: mysql+asyncmy://${MYSQL_USER:-cep_user}:${MYSQL_PASSWORD:-cep_password}@db:3306/${MYSQL_DATABASE:-cep_db}
+      SECRET_KEY: ${SECRET_KEY:-change_this_secret_key_in_production_super_safe_random_key_12345}
+      ALGORITHM: ${ALGORITHM:-HS256}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-1440}
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health')\" || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
 volumes:
   mysql_data:
     name: cep_mysql_data

@@ -16,3 +16,13 @@ async def test_mysql_connection():
         assert row[0] == 2
         assert row[1] == "cep_db"
     await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_get_db_session_generator():
+    from app.core.database import get_db_session
+
+    async for session in get_db_session():
+        result = await session.execute(text("SELECT 1 AS ok;"))
+        assert result.scalar() == 1
+

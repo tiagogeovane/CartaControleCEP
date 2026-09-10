@@ -3,6 +3,7 @@ from app.domain.interfaces.repositories import (
     ICartaControleRepository,
     IProcessoRepository,
     ISubgrupoRepository,
+    IUsuarioRepository,
 )
 
 __all__ = [
@@ -10,4 +11,5 @@ __all__ = [
     "IProcessoRepository",
     "ISubgrupoObserver",
     "ISubgrupoRepository",
+    "IUsuarioRepository",
 ]

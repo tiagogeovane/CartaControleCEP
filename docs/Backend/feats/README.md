@@ -34,8 +34,8 @@ XX-descricao-da-feature.md
 | :---: | :--- | :---: | :---: | :--- |
 | **FEAT-00** | Setup de Ambiente, Infraestrutura Base & Docker | Fase 0 | ✅ Concluído | [00-setup-infraestrutura.md](./00-setup-infraestrutura.md) |
 | **FEAT-01** | Domínio Puro & Motor de Cálculo Estatístico | Fase 1 | ✅ Concluído | [01-dominio-motor-cep.md](./01-dominio-motor-cep.md) |
-| **FEAT-02** | Persistência Relacional & Repositórios (MySQL 8.0) | Fase 2 | 🔲 Planejado | *A ser criado na execução da Fase 2* |
-| **FEAT-03** | Camada de Aplicação & Orquestração de Subgrupos | Fase 3 | 🔲 Planejado | *A ser criado na execução da Fase 3* |
-| **FEAT-04** | WebSockets Nativos & Notificação Reativa | Fase 4 | 🔲 Planejado | *A ser criado na execução da Fase 4* |
-| **FEAT-05** | Camada de Apresentação & API REST (FastAPI) | Fase 5 | 🔲 Planejado | *A ser criado na execução da Fase 5* |
-| **FEAT-06** | Simulador IoT, Testes E2E & Containerização Final | Fase 6 | 🔲 Planejado | *A ser criado na execução da Fase 6* |
+| **FEAT-02** | Persistência Relacional & Repositórios (MySQL 8.0) | Fase 2 | ✅ Concluído | [02-persistencia-relacional-mysql.md](./02-persistencia-relacional-mysql.md) |
+| **FEAT-03** | Camada de Aplicação & Orquestração de Subgrupos | Fase 3 | ✅ Concluído | [03-camada-aplicacao-servicos.md](./03-camada-aplicacao-servicos.md) |
+| **FEAT-04** | WebSockets Nativos & Notificação Reativa | Fase 4 | ✅ Concluído | [04-tempo-real-websockets.md](./04-tempo-real-websockets.md) |
+| **FEAT-05** | Camada de Apresentação & API REST (FastAPI) | Fase 5 | ✅ Concluído | [05-camada-apresentacao-api-rest.md](./05-camada-apresentacao-api-rest.md) |
+| **FEAT-06** | Simulador IoT, Testes E2E & Containerização Final | Fase 6 | ✅ Concluído | [06-simulador-e2e-containerizacao.md](./06-simulador-e2e-containerizacao.md) |

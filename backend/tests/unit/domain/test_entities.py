@@ -4,6 +4,7 @@ import pytest
 from app.domain.entities.carta import CartaControle
 from app.domain.entities.processo import Processo
 from app.domain.entities.subgrupo import Subgrupo
+from app.domain.entities.usuario import Usuario
 from app.domain.strategies.base import ICartaControleStrategy
 from app.domain.strategies.factory import CartaStrategyFactory
 from app.domain.strategies.imr_chart import CartaIMRStrategy
@@ -272,3 +273,37 @@ class TestCartaStrategyFactory:
         assert "CUSTOM_DECORATED" in CartaStrategyFactory.obter_estrategias_registradas()
         assert isinstance(CartaStrategyFactory.fabricar("custom-decorated", 3), MockDecoratedStrategy)
         CartaStrategyFactory.desregistrar("CUSTOM_DECORATED")
+
+
+class TestUsuarioEntity:
+    def test_usuario_valido(self):
+        usuario = Usuario(
+            nome="Carlos Silva",
+            email="carlos.silva@empresa.com",
+            senha_hash="hash_super_secreto_123",
+        )
+        assert usuario.nome == "Carlos Silva"
+        assert usuario.email == "carlos.silva@empresa.com"
+        assert usuario.perfil == "OPERADOR"
+
+    def test_usuario_perfil_customizado(self):
+        usuario = Usuario(
+            nome="Ana Paula",
+            email="ana@empresa.com",
+            senha_hash="hash_123",
+            perfil="engenheiro_qualidade",
+        )
+        assert usuario.perfil == "ENGENHEIRO_QUALIDADE"
+
+    def test_usuario_rejeita_nome_vazio(self):
+        with pytest.raises(ValueError, match="nome do usuário é obrigatório"):
+            Usuario(nome="   ", email="user@teste.com", senha_hash="123")
+
+    def test_usuario_rejeita_email_invalido(self):
+        with pytest.raises(ValueError, match="E-mail do usuário inválido"):
+            Usuario(nome="User", email="email_sem_arroba", senha_hash="123")
+
+    def test_usuario_rejeita_senha_vazia(self):
+        with pytest.raises(ValueError, match="hash da senha é obrigatório"):
+            Usuario(nome="User", email="user@teste.com", senha_hash="")
+
