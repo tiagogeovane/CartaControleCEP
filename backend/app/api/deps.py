@@ -33,7 +33,18 @@ from app.infrastructure.real_time.websocket_observer import (
     WebSocketNotificationObserver,
 )
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/login")
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl=f"{settings.API_V1_STR}/auth/login",
+    auto_error=False,
+)
+
+DEFAULT_ADMIN_USER = Usuario(
+    id=UUID("00000000-0000-0000-0000-000000000001"),
+    nome="Administrador",
+    email="admin@cep.local",
+    senha_hash="system_admin_no_password_required",
+    perfil="ADMIN",
+)
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
@@ -102,24 +113,22 @@ async def get_processamento_subgrupo_service(
     )
 
 
-# Autenticação e Usuário Atual
+# Autenticação e Usuário Atual (Sistema Aberto: Default Admin)
 async def get_current_user(
-    token: Annotated[str, Depends(oauth2_scheme)],
-    usuario_repo: Annotated[IUsuarioRepository, Depends(get_usuario_repository)],
+    token: Annotated[str | None, Depends(oauth2_scheme)] = None,
+    usuario_repo: Annotated[IUsuarioRepository, Depends(get_usuario_repository)] = None,
 ) -> Usuario:
-    """Extrai e valida o token JWT e retorna a entidade de Usuário autenticado."""
-    credenciais_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Credenciais de autenticação inválidas ou expiradas",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
+    """Extrai e valida o token JWT ou retorna o Administrador padrão caso o acesso seja anônimo."""
+    if not token:
+        return DEFAULT_ADMIN_USER
+
     payload = decodificar_token(token)
     if payload is None:
-        raise credenciais_exception
+        return DEFAULT_ADMIN_USER
 
     user_id_str: str | None = payload.get("sub")
-    if user_id_str is None:
-        raise credenciais_exception
+    if user_id_str is None or usuario_repo is None:
+        return DEFAULT_ADMIN_USER
 
     try:
         user_uuid = UUID(user_id_str)
@@ -127,7 +136,4 @@ async def get_current_user(
     except (ValueError, TypeError):
         usuario = await usuario_repo.obter_por_email(user_id_str)
 
-    if usuario is None:
-        raise credenciais_exception
-
-    return usuario
+    return usuario or DEFAULT_ADMIN_USER

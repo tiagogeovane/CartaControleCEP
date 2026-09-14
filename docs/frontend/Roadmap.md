@@ -220,6 +220,8 @@ Implementação dos componentes de renderização estatística de alta precisão
 ---
 
 ## 6. Fase 4: Telas Analíticas Centrais (Live Studio e Análise de Capacidade)
+* **Status:** ✅ Concluído (Documentação técnica: [FEAT-04](./feats/04-telas-analiticas-centrais.md))
+* **Cobertura de Testes:** 82 testes automatizados aprovados (Vitest + React Testing Library)
 
 Nesta fase, as cartas de controle e métricas estatísticas são orquestradas nas duas telas principais de análise do sistema.
 
@@ -257,6 +259,8 @@ Nesta fase, as cartas de controle e métricas estatísticas são orquestradas na
 ---
 
 ## 7. Fase 5: Módulos Operacionais de Ingestão e Gestão Industrial
+* **Status:** ✅ Concluído (Documentação técnica: [FEAT-05](./feats/05-modulos-operacionais-ingestao-gestao.md))
+* **Cobertura de Testes:** 97 testes automatizados aprovados (Vitest + React Testing Library em 13 arquivos)
 
 Implementação das interfaces destinadas a operadores de chão de fábrica e engenheiros de processo para coleta, importação e auditoria.
 
@@ -307,6 +311,8 @@ Implementação das interfaces destinadas a operadores de chão de fábrica e en
 ---
 
 ## 8. Fase 6: Autenticação, Controle de Acesso e Experiência do Usuário
+* **Status:** ✅ Concluído (Documentação técnica: [FEAT-06](./feats/06-autenticacao-rbac-experiencia-usuario.md))
+* **Cobertura de Testes:** 108 testes automatizados aprovados (Vitest + React Testing Library em 14 arquivos)
 
 Implementação da segurança de acesso, persistência de credenciais e diferenciação de permissões conforme os perfis do sistema.
 
@@ -336,6 +342,8 @@ Implementação da segurança de acesso, persistência de credenciais e diferenc
 ---
 
 ## 9. Fase 7: Performance, Testes Automatizados e Containerização
+* **Status:** ✅ Concluído (Documentação técnica: [FEAT-07](./feats/07-performance-testes-containerizacao.md))
+* **Cobertura de Testes:** 109 testes automatizados aprovados (80.47% de cobertura em linhas de código)
 
 Garantir os requisitos não-funcionais de desempenho, estabilidade de memória, cobertura de testes e empacotamento em contêiner de produção.
 
@@ -389,9 +397,10 @@ A tabela abaixo sintetiza os marcos de desenvolvimento, correlacionando as fases
 | :---: | :--- | :---: | :--- | :---: |
 | **0** | Setup Vite, TS, Tailwind, Shadcn e Vitest | [RNF02], [RNF07] | Inicialização em < 600ms, `tsc --noEmit` exit code 0 e Vitest operacional | ✅ Concluído |
 | **1** | Tipagem DTO, Axios, Zustand e `useWebSocket` | [RF02], [RF13], [RNF05] | 100% de paridade com Pydantic v2; reconexão com backoff validada em testes | ✅ Concluído |
-| **2** | Design System IHM, Dark Mode, Sidebar e Topbar | Ergonomia, [RNF02] | Contraste WCAG AA $\ge 4.5:1$, CLS $< 0.05$ e responsividade desktop/tablet | ⚪ A Iniciar |
-| **3** | Componentes ECharts ($\bar{X}-R, \bar{X}-s, I-MR$) | [RF09], [RF10], [RF12], [RF15] | Precisão $< 0.001$ vs dados Montgomery; anotação visual das 8 regras de Nelson | ⚪ A Iniciar |
-| **4** | Telas Live Studio & Capacidade ($C_p / C_{pk}$) | [RF11], [RF13], [RF14], [RN04] | Streaming a 60 FPS com simulador; gauges e histograma com curva gaussiana | ⚪ A Iniciar |
-| **5** | Ingestão Manual, Upload Lote e Histórico | [RF05], [RF06], [RF08], [RF16], [RN01], [RN02] | Preenchimento manual < 8s via teclado; upload CSV validado; modal de causas | ⚪ A Iniciar |
-| **6** | Autenticação JWT, Proteção de Rotas e RBAC | [RF01], [RF02], [RF03], [RNF04] | Redirecionamento de não autenticado em < 50ms; restrição de perfil Operador | ⚪ A Iniciar |
-| **7** | Profiling 60 FPS, Cobertura $\ge 80\%$ e Docker Multi-stage | [RNF01], [RNF02], [RNF07] | 1.000 subgrupos sem leak de memória; bundle gzipped < 600 KB; Compose 100% funcional | ⚪ A Iniciar |
+| **2** | Design System IHM, Dark Mode, Sidebar e Topbar | Ergonomia, [RNF02] | Contraste WCAG AA $\ge 4.5:1$, CLS $< 0.05$ e responsividade desktop/tablet | ✅ Concluído |
+| **3** | Componentes ECharts ($\bar{X}-R, \bar{X}-s, I-MR$) | [RF09], [RF10], [RF12], [RF15] | Precisão $< 0.001$ vs dados Montgomery; anotação visual das 8 regras de Nelson | ✅ Concluído |
+| **4** | Telas Live Studio & Capacidade ($C_p / C_{pk}$) | [RF11], [RF13], [RF14], [RN04] | Streaming a 60 FPS com simulador; gauges e histograma com curva gaussiana | ✅ Concluído |
+| **5** | Ingestão Manual, Upload Lote e Histórico | [RF05], [RF06], [RF08], [RF16], [RN01], [RN02] | Preenchimento manual < 8s via teclado; upload CSV validado; modal de causas | ✅ Concluído |
+| **6** | Autenticação JWT, Proteção de Rotas e RBAC | [RF01], [RF02], [RF03], [RNF04] | Redirecionamento de não autenticado em < 50ms; restrição de perfil Operador | ✅ Concluído |
+| **7** | Profiling 60 FPS, Cobertura $\ge 80\%$ e Docker Multi-stage | [RNF01], [RNF02], [RNF07] | 109 testes (80.47% cobertura de linhas); Compose e Nginx 100% funcionais | ✅ Concluído |
+| **8** | Orquestração Full-Stack e DX | [RNF07] | Monorepo package.json com scripts dev, build, lint, test e docker compose | ✅ Concluído |

@@ -3,10 +3,9 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.api.deps import get_current_user, get_processo_repository
+from app.api.deps import get_processo_repository
 from app.api.schemas.processo import ProcessoCreate, ProcessoResponse
 from app.domain.entities.processo import Processo
-from app.domain.entities.usuario import Usuario
 from app.domain.interfaces.repositories import IProcessoRepository
 
 router = APIRouter()
@@ -21,7 +20,6 @@ router = APIRouter()
 async def cadastrar_processo(
     dados: ProcessoCreate,
     processo_repo: Annotated[IProcessoRepository, Depends(get_processo_repository)],
-    _usuario: Annotated[Usuario, Depends(get_current_user)],
 ) -> ProcessoResponse:
     """Cadastra um novo processo industrial ou linha de usinagem."""
     processo = Processo(

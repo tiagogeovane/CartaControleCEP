@@ -44,6 +44,7 @@ class SimuladorIoTCEP:
         self.token: str | None = None
         self.carta_id: str | None = None
         self.processo_id: str | None = None
+        self.total_existentes = 0
 
         # Estatísticas acumuladas da sessão
         self.total_enviados = 0
@@ -105,6 +106,7 @@ class SimuladorIoTCEP:
         self,
         carta_id: str | None = None,
         codigo_linha: str = "CNC-SIM-01",
+        nova_carta: bool = False,
     ) -> str:
         """Obtém carta existente ou cria novo processo e carta de teste com tolerâncias industriais."""
         headers = {"Authorization": f"Bearer {self.token}"}
@@ -113,8 +115,14 @@ class SimuladorIoTCEP:
             res = self.client.get(f"/api/v1/cartas/{carta_id}")
             if res.status_code == 200:
                 self.carta_id = carta_id
+                dados_carta = res.json()
+                self.total_existentes = dados_carta.get("total_subgrupos", 0)
                 return carta_id
             print(f"⚠️ Carta {carta_id} não encontrada. Criando uma nova...")
+
+        # Se for solicitada nova carta, adiciona sufixo timestamp para criar linha isolada
+        if nova_carta:
+            codigo_linha = f"{codigo_linha}-{int(time.time())}"
 
         # Busca ou cria processo industrial
         res_proc = self.client.get("/api/v1/processos")
@@ -143,9 +151,13 @@ class SimuladorIoTCEP:
             params={"processo_id": self.processo_id},
         )
         cartas = res_cartas.json() if res_cartas.status_code == 200 else []
-        carta_alvo = next(
-            (c for c in cartas if c.get("tamanho_subgrupo") == self.tamanho_subgrupo),
-            None,
+        carta_alvo = (
+            None
+            if nova_carta
+            else next(
+                (c for c in cartas if c.get("tamanho_subgrupo") == self.tamanho_subgrupo),
+                None,
+            )
         )
 
         if not carta_alvo:
@@ -171,6 +183,7 @@ class SimuladorIoTCEP:
             carta_alvo = res_nova_carta.json()
 
         self.carta_id = carta_alvo["id"]
+        self.total_existentes = carta_alvo.get("total_subgrupos", 0)
         return self.carta_id
 
     def gerar_amostras_subgrupo(self, numero_subgrupo: int) -> tuple[list[float], str]:
@@ -313,13 +326,15 @@ class SimuladorIoTCEP:
         print("=" * 80)
         print("Pressione [Ctrl+C] a qualquer momento para interromper a simulação.\n")
 
-        subgrupo_num = 1
+        subgrupo_num = self.total_existentes + 1
+        enviados_sessao = 0
         try:
             while True:
                 self.enviar_subgrupo(subgrupo_num)
+                enviados_sessao += 1
 
-                if limite_pontos > 0 and subgrupo_num >= limite_pontos:
-                    print(f"\n🏁 Limite de {limite_pontos} subgrupos atingido.")
+                if limite_pontos > 0 and enviados_sessao >= limite_pontos:
+                    print(f"\n🏁 Limite de {limite_pontos} subgrupos atingido nesta sessão.")
                     break
 
                 subgrupo_num += 1
@@ -372,6 +387,7 @@ def main() -> None:
     parser.add_argument("-m", "--media", type=float, default=25.0, help="Média nominal do processo (μ)")
     parser.add_argument("-s", "--desvio", type=float, default=0.5, help="Desvio padrão do processo (σ)")
     parser.add_argument("--sem-anomalias", action="store_true", help="Desativa a injeção periódica de anomalias")
+    parser.add_argument("--nova-carta", action="store_true", help="Força a criação de uma nova carta de controle exclusiva")
     parser.add_argument("--carta-id", type=str, default=None, help="UUID de uma carta de controle existente")
     parser.add_argument("--email", default="admin@cep.com", help="E-mail de autenticação")
     parser.add_argument("--senha", default="Admin123!", help="Senha de autenticação")
@@ -408,6 +424,7 @@ def main() -> None:
     simulador.obter_ou_criar_carta(
         carta_id=args.carta_id,
         codigo_linha=args.codigo_linha,
+        nova_carta=args.nova_carta,
     )
 
     simulador.executar(limite_pontos=args.limite)

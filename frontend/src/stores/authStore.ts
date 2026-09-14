@@ -12,12 +12,19 @@ export interface AuthState {
   setUsuario: (usuario: UsuarioResponse | null) => void
 }
 
+export const DEFAULT_ADMIN_USER: UsuarioResponse = {
+  id: '00000000-0000-0000-0000-000000000001',
+  nome: 'Administrador',
+  email: 'admin@cep.local',
+  perfil: 'ADMIN',
+}
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
-      token: null,
-      usuario: null,
-      isAuthenticated: false,
+      token: 'admin-local-token',
+      usuario: DEFAULT_ADMIN_USER,
+      isAuthenticated: true,
 
       login: (token: string, usuario: UsuarioResponse) => {
         if (typeof window !== 'undefined') {

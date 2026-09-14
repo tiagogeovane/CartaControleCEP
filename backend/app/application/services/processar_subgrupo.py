@@ -120,6 +120,13 @@ class ProcessamentoSubgrupoService:
             )
 
         # 7. Construção da Entidade Subgrupo
+        if numero_subgrupo is not None:
+            if any(s.numero_subgrupo == numero_subgrupo for s in carta.subgrupos):
+                raise AmostraInvalidaError(
+                    f"Subgrupo #{numero_subgrupo} já existe para a carta de controle '{carta.id}'. "
+                    f"O identificador sequencial do subgrupo deve ser único."
+                )
+
         num_subgrupo = (
             numero_subgrupo if numero_subgrupo is not None else carta.total_subgrupos + 1
         )

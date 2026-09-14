@@ -1,0 +1,105 @@
+import { Download, Pause, Play } from 'lucide-react'
+import { cn } from '@/lib/utils'
+
+export interface ControlesCartaProps {
+  janelaSelecionada: number | 'todos'
+  onSelectJanela: (janela: number | 'todos') => void
+  streamingPausado: boolean
+  onTogglePausa: () => void
+  onExportarPNG: () => void
+  totalSubgrupos: number
+  className?: string
+}
+
+const opcoesJanela: Array<{ label: string; valor: number | 'todos' }> = [
+  { label: '30 pts', valor: 30 },
+  { label: '50 pts', valor: 50 },
+  { label: '100 pts', valor: 100 },
+  { label: 'Todos', valor: 'todos' },
+]
+
+export function ControlesCarta({
+  janelaSelecionada,
+  onSelectJanela,
+  streamingPausado,
+  onTogglePausa,
+  onExportarPNG,
+  totalSubgrupos,
+  className,
+}: ControlesCartaProps) {
+  return (
+    <div
+      className={cn(
+        'flex flex-wrap items-center justify-between gap-3 p-3 bg-slate-900/90 border border-slate-800 rounded-xl',
+        className
+      )}
+    >
+      {/* Seletor de Janela de Visualização */}
+      <div className="flex items-center gap-1.5">
+        <span className="text-2xs uppercase tracking-wider text-slate-400 font-medium mr-1 hidden sm:inline">
+          Janela:
+        </span>
+        <div className="inline-flex rounded-lg bg-slate-950 p-0.5 border border-slate-800">
+          {opcoesJanela.map((opcao) => {
+            const isAtivo = janelaSelecionada === opcao.valor
+            return (
+              <button
+                key={String(opcao.valor)}
+                type="button"
+                onClick={() => onSelectJanela(opcao.valor)}
+                className={cn(
+                  'px-2.5 py-1 text-xs font-mono rounded-md transition-all cursor-pointer',
+                  isAtivo
+                    ? 'bg-blue-600 text-white font-semibold shadow-xs'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                )}
+              >
+                {opcao.label}
+              </button>
+            )
+          })}
+        </div>
+        <span className="text-2xs text-slate-400 font-mono ml-2 hidden md:inline">
+          ({totalSubgrupos} subgrupos)
+        </span>
+      </div>
+
+      {/* Ações: Congelar e Exportar */}
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={onTogglePausa}
+          className={cn(
+            'flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors cursor-pointer',
+            streamingPausado
+              ? 'bg-amber-950/80 text-amber-300 border-amber-700/80 hover:bg-amber-900/90'
+              : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+          )}
+          title={streamingPausado ? 'Retomar rolagem contínua' : 'Congelar tela para análise'}
+        >
+          {streamingPausado ? (
+            <>
+              <Play className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+              <span>Retomar</span>
+            </>
+          ) : (
+            <>
+              <Pause className="w-3.5 h-3.5 text-slate-400" />
+              <span>Congelar</span>
+            </>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={onExportarPNG}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800 text-slate-300 border border-slate-700 hover:bg-slate-700 hover:text-white transition-colors cursor-pointer"
+          title="Exportar imagem PNG da carta em alta resolução"
+        >
+          <Download className="w-3.5 h-3.5 text-slate-400" />
+          <span className="hidden sm:inline">Exportar PNG</span>
+        </button>
+      </div>
+    </div>
+  )
+}

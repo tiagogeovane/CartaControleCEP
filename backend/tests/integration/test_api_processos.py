@@ -26,12 +26,12 @@ async def auth_header(async_client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_crud_processos(async_client: AsyncClient, auth_header: dict):
-    # 1. Tentativa sem token -> 401
+    # 1. Criação sem token -> 201 (sistema aberto sem necessidade de contas)
     res_sem_auth = await async_client.post(
         "/api/v1/processos",
-        json={"nome": "Prensa Hidráulica", "codigo_linha": "PRENSA-01"},
+        json={"nome": "Prensa Hidráulica", "codigo_linha": f"PRENSA-{uuid4().hex[:4].upper()}"},
     )
-    assert res_sem_auth.status_code == 401
+    assert res_sem_auth.status_code == 201
 
     # 2. Cadastro de processo
     cod_linha = f"LINHA-{uuid4().hex[:5].upper()}"

@@ -74,6 +74,8 @@ async def test_fluxo_autenticacao_completo(async_client: AsyncClient):
     assert me_data["email"] == email
     assert me_data["nome"] == "Operador Linha 01"
 
-    # 6. Acesso sem token
+    # 6. Acesso sem token -> retorna Administrador padrão (sistema sem contas)
     res_sem_token = await async_client.get("/api/v1/auth/me")
-    assert res_sem_token.status_code == 401
+    assert res_sem_token.status_code == 200
+    assert res_sem_token.json()["perfil"] == "ADMIN"
+    assert res_sem_token.json()["nome"] == "Administrador"

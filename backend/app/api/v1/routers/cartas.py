@@ -5,7 +5,6 @@ from fastapi import APIRouter, Depends, Query, status
 
 from app.api.deps import (
     get_analise_capacidade_service,
-    get_current_user,
     get_gerenciar_carta_service,
 )
 from app.api.schemas.carta import (
@@ -20,7 +19,6 @@ from app.api.schemas.carta import (
 from app.application.services.analise_capacidade import AnaliseCapacidadeService
 from app.application.services.gerenciar_carta import GerenciarCartaService
 from app.domain.entities.carta import CartaControle
-from app.domain.entities.usuario import Usuario
 from app.domain.value_objects.limites import LimitesEspecificacao
 
 router = APIRouter()
@@ -66,7 +64,6 @@ def _formatar_carta_response(carta: CartaControle) -> CartaControleResponse:
 async def cadastrar_carta(
     dados: CartaControleCreate,
     service: Annotated[GerenciarCartaService, Depends(get_gerenciar_carta_service)],
-    _usuario: Annotated[Usuario, Depends(get_current_user)],
 ) -> CartaControleResponse:
     """Cria e persiste uma nova Carta de Controle vinculada a um Processo Industrial.
 
@@ -178,7 +175,6 @@ async def atualizar_especificacoes(
     carta_id: UUID,
     dados: LimitesEspecificacaoSchema,
     service: Annotated[GerenciarCartaService, Depends(get_gerenciar_carta_service)],
-    _usuario: Annotated[Usuario, Depends(get_current_user)],
 ) -> CartaControleResponse:
     """Atualiza as tolerâncias de engenharia da carta de controle (LSE, LIE, Valor Nominal)."""
     specs = LimitesEspecificacao(
@@ -199,7 +195,6 @@ async def alternar_modo_limites(
     carta_id: UUID,
     dados: ModoLimitesUpdate,
     service: Annotated[GerenciarCartaService, Depends(get_gerenciar_carta_service)],
-    _usuario: Annotated[Usuario, Depends(get_current_user)],
 ) -> CartaControleResponse:
     """Alterna o modo de atualização dos limites de controle entre DINAMICO e FIXO."""
     carta = await service.alternar_modo_limites(carta_id=carta_id, modo_limites=dados.modo_limites)
