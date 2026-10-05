@@ -145,6 +145,12 @@ Caso o backend esteja rodando em outro endereço de rede:
 python backend/scripts/simulador_iot.py --url http://192.168.1.100:8000
 ```
 
+
+```bash
+source backend/.venv/bin/activate
+python backend/scripts/simulador_iot.py --nova-carta -i 1 -n 100
+```
+
 ---
 
 ## 📋 5. Tabela Completa de Parâmetros de Linha de Comando
