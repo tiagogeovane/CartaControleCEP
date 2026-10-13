@@ -13,6 +13,8 @@ Na validação de sistemas de monitoramento fabril em tempo real, a coleta manua
 3. **Validação do Pipeline em Tempo Real:** permite assistir visualmente no dashboard frontend (`/live`) a atualização incremental das cartas de controle a 60 FPS através dos WebSockets em memória.
 4. **Telemetria e Medição de Latência:** monitora a latência ponta a ponta (rede + ingestão + cálculo NumPy + persistência + WebSocket broadcast) garantindo o atendimento ao requisito não-funcional **[RNF01]** (< 500 ms).
 
+> 💡 **Entrada Alternativa via JSON:** Se desejar reproduzir conjuntos de medições pré-existentes, determinísticos ou importados de arquivos JSON em vez de gerar medições aleatórias, utilize o script [`simulador_json.py`](../../backend/scripts/json/simulador_json.py), documentado no [Guia do Script de Ingestão via JSON](./Simulador_JSON.md).
+
 ```text
 ┌─────────────────────────┐         HTTP REST (POST /amostras)        ┌─────────────────────────┐
 │                         │ ────────────────────────────────────────> │      FastAPI (API)      │

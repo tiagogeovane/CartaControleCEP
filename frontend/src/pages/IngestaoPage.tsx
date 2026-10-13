@@ -173,7 +173,7 @@ export function IngestaoPage() {
         const json = JSON.parse(conteudo)
         const amostrasArray = Array.isArray(json)
           ? json
-          : json.amostras || json.subgrupos || json.dados
+          : json.Data || json.data || json.amostras || json.subgrupos || json.dados
         if (!Array.isArray(amostrasArray)) {
           throw new Error('Formato JSON inválido. Esperado array de amostras [[...], [...]]')
         }

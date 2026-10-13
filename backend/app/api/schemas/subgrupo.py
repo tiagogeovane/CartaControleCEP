@@ -1,7 +1,9 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from typing import Any
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class AmostraIngestaoRequest(BaseModel):
@@ -49,6 +51,19 @@ class ImportacaoLoteRequest(BaseModel):
     """Payload para importação em lote de dados históricos pré-coletados."""
 
     amostras: list[list[float]] = Field(..., min_length=1, description="Matriz de amostras [[amostra_1], [amostra_2], ...]")
+
+    @model_validator(mode="before")
+    @classmethod
+    def extrair_amostras(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "amostras" not in data:
+                for chave in ("Data", "data", "subgrupos", "dados"):
+                    if chave in data and isinstance(data[chave], list):
+                        data["amostras"] = data[chave]
+                        break
+        elif isinstance(data, list):
+            return {"amostras": data}
+        return data
 
 
 class ImportacaoLoteResponse(BaseModel):
