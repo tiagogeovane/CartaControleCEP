@@ -1,4 +1,4 @@
-import { Download, Pause, Play } from 'lucide-react'
+import { Download, FileText, Pause, Play } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export interface ControlesCartaProps {
@@ -7,6 +7,7 @@ export interface ControlesCartaProps {
   streamingPausado: boolean
   onTogglePausa: () => void
   onExportarPNG: () => void
+  onGerarRelatorioPDF?: () => void
   totalSubgrupos: number
   className?: string
 }
@@ -24,6 +25,7 @@ export function ControlesCarta({
   streamingPausado,
   onTogglePausa,
   onExportarPNG,
+  onGerarRelatorioPDF,
   totalSubgrupos,
   className,
 }: ControlesCartaProps) {
@@ -99,6 +101,18 @@ export function ControlesCarta({
           <Download className="w-3.5 h-3.5 text-slate-400" />
           <span className="hidden sm:inline">Exportar PNG</span>
         </button>
+
+        {onGerarRelatorioPDF && (
+          <button
+            type="button"
+            onClick={onGerarRelatorioPDF}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-blue-600/20 text-blue-300 border border-blue-500/40 hover:bg-blue-600/30 hover:text-white transition-colors cursor-pointer"
+            title="Personalizar e gerar relatório técnico completo em PDF"
+          >
+            <FileText className="w-3.5 h-3.5 text-blue-400" />
+            <span className="hidden sm:inline">Relatório PDF</span>
+          </button>
+        )}
       </div>
     </div>
   )

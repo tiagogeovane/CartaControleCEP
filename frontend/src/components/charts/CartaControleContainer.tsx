@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from 'react'
+import { useState, useRef, useMemo, forwardRef, useImperativeHandle } from 'react'
 import { Activity } from 'lucide-react'
 import type {
   LimitesControleSchema,
@@ -13,6 +13,7 @@ import { ControlesCarta } from './ControlesCarta'
 import { CartaXRChart } from './CartaXRChart'
 import { CartaXSChart } from './CartaXSChart'
 import { CartaIMRChart } from './CartaIMRChart'
+import { ModalRelatorioPDF } from './ModalRelatorioPDF'
 
 export interface CartaControleContainerProps {
   subgrupos?: SubgrupoResponse[]
@@ -26,19 +27,35 @@ export interface CartaControleContainerProps {
   className?: string
 }
 
-export function CartaControleContainer({
-  subgrupos: subgruposProp,
-  limites: limitesProp,
-  especificacoes: especificacoesProp,
-  tipoCarta: tipoCartaProp,
-  tamanhoSubgrupo: tamanhoSubgrupoProp,
-  loading = false,
-  height = 560,
-  mostrarControles = true,
-  className,
-}: CartaControleContainerProps) {
-  const chartRef = useRef<BaseChartRef>(null)
-  const [janelaSelecionada, setJanelaSelecionada] = useState<number | 'todos'>(30)
+export const CartaControleContainer = forwardRef<BaseChartRef, CartaControleContainerProps>(
+  function CartaControleContainer(
+    {
+      subgrupos: subgruposProp,
+      limites: limitesProp,
+      especificacoes: especificacoesProp,
+      tipoCarta: tipoCartaProp,
+      tamanhoSubgrupo: tamanhoSubgrupoProp,
+      loading = false,
+      height = 560,
+      mostrarControles = true,
+      className,
+    }: CartaControleContainerProps,
+    forwardedRef
+  ) {
+    const chartRef = useRef<BaseChartRef>(null)
+
+    useImperativeHandle(
+      forwardedRef,
+      () => ({
+        getInstance: () => chartRef.current?.getInstance() ?? null,
+        getDataURL: (opts) => chartRef.current?.getDataURL(opts) ?? null,
+        resize: () => chartRef.current?.resize(),
+      }),
+      []
+    )
+
+    const [janelaSelecionada, setJanelaSelecionada] = useState<number | 'todos'>(30)
+  const [isModalRelatorioAberto, setIsModalRelatorioAberto] = useState(false)
 
   // Consumir estado global caso não seja provido explicitamente via props
   const storeSubgrupos = useCEPStore((s) => s.subgruposHistorico)
@@ -180,6 +197,7 @@ export function CartaControleContainer({
           streamingPausado={streamingPausado}
           onTogglePausa={togglePausaStreaming}
           onExportarPNG={handleExportarPNG}
+          onGerarRelatorioPDF={() => setIsModalRelatorioAberto(true)}
           totalSubgrupos={subgrupos.length}
         />
       )}
@@ -250,6 +268,19 @@ export function CartaControleContainer({
           </div>
         )}
       </div>
+
+      <ModalRelatorioPDF
+        isOpen={isModalRelatorioAberto}
+        onClose={() => setIsModalRelatorioAberto(false)}
+        cartaDetalhes={storeCartaDetalhes}
+        subgrupos={subgrupos}
+        limites={limites}
+        especificacoes={especificacoes}
+        tipoCarta={tipoCarta}
+        tamanhoSubgrupo={tamanhoSubgrupo}
+        getChartImage={() => chartRef.current?.getDataURL({ type: 'png', pixelRatio: 2 })}
+      />
     </div>
   )
-}
+})
+

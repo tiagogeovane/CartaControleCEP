@@ -16,7 +16,7 @@ describe('Fase 2 - Layout IHM Industrial (Sidebar, Topbar e MainLayout)', () => 
     useCEPStore.getState().setStreamingPausado(false)
   })
 
-  it('deve renderizar a Sidebar expandida com todos os 5 módulos industriais', () => {
+  it('deve renderizar a Sidebar simplificada com Live CEP, Capacidade e Gerar Relatório', () => {
     const onToggle = vi.fn()
     render(
       <MemoryRouter>
@@ -27,9 +27,12 @@ describe('Fase 2 - Layout IHM Industrial (Sidebar, Topbar e MainLayout)', () => 
     expect(screen.getByText('CEP Industrial')).toBeInTheDocument()
     expect(screen.getByText('Live CEP')).toBeInTheDocument()
     expect(screen.getByText('Capacidade')).toBeInTheDocument()
-    expect(screen.getByText('Ingestão de Dados')).toBeInTheDocument()
-    expect(screen.getByText('Histórico & Causas')).toBeInTheDocument()
-    expect(screen.getByText('Processos & Cartas')).toBeInTheDocument()
+    expect(screen.getByText('Gerar Relatório')).toBeInTheDocument()
+
+    // Valida que as abas desnecessárias foram removidas do menu lateral
+    expect(screen.queryByText('Ingestão de Dados')).not.toBeInTheDocument()
+    expect(screen.queryByText('Histórico & Causas')).not.toBeInTheDocument()
+    expect(screen.queryByText('Processos & Cartas')).not.toBeInTheDocument()
 
     const btnToggle = screen.getByLabelText('Recolher menu lateral')
     fireEvent.click(btnToggle)

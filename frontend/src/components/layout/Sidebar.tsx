@@ -7,11 +7,9 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronUp,
-  ClipboardList,
-  Cpu,
+  FileText,
   Layers,
   Sliders,
-  UploadCloud,
 } from 'lucide-react'
 import { cartasApi } from '@/services/api'
 import { useCEPStore } from '@/stores/cepStore'
@@ -45,19 +43,9 @@ const navItems: NavItem[] = [
     icon: BarChart3,
   },
   {
-    label: 'Ingestão de Dados',
-    to: '/ingestao',
-    icon: UploadCloud,
-  },
-  {
-    label: 'Histórico & Causas',
-    to: '/historico',
-    icon: ClipboardList,
-  },
-  {
-    label: 'Processos & Cartas',
-    to: '/processos',
-    icon: Cpu,
+    label: 'Gerar Relatório',
+    to: '/relatorio',
+    icon: FileText,
   },
 ]
 

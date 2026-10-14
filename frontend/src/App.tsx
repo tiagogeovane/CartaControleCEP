@@ -4,6 +4,7 @@ import { MainLayout } from '@/components/layout/MainLayout'
 import {
   LiveStudioPage,
   CapacidadePage,
+  RelatorioPage,
   IngestaoPage,
   HistoricoPage,
   ProcessosPage,
@@ -32,6 +33,7 @@ export function App() {
             {/* Todas as rotas operacionais e de engenharia abertas com acesso irrestrito */}
             <Route path="live" element={<LiveStudioPage />} />
             <Route path="capacidade" element={<CapacidadePage />} />
+            <Route path="relatorio" element={<RelatorioPage />} />
             <Route path="ingestao" element={<IngestaoPage />} />
             <Route path="historico" element={<HistoricoPage />} />
             <Route path="processos" element={<ProcessosPage />} />
