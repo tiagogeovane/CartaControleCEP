@@ -222,18 +222,23 @@ export function WizardNovaCarta({
                   id="wizard-tipo-carta"
                   value={tipoCarta}
                   onChange={(e) => {
-                    setTipoCarta(e.target.value as TipoCarta)
+                    const novoTipo = e.target.value as TipoCarta
+                    setTipoCarta(novoTipo)
                     setTipoAlteradoManualmente(true)
+                    if (novoTipo === 'C') {
+                      setTamanhoSubgrupo(1)
+                      setTemEspecificacoes(false)
+                    } else if (novoTipo === 'P') {
+                      setTemEspecificacoes(false)
+                    }
                   }}
                   className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-700 text-slate-200 focus:outline-hidden focus:border-blue-500"
                 >
                   <option value="X_R">X̄-R (Médias e Amplitude)</option>
                   <option value="X_S">X̄-s (Médias e Desvio-Padrão)</option>
                   <option value="I_MR">I-MR (Valores Individuais)</option>
-                  <option value="P">P (Proporção de Defeituosos)</option>
-                  <option value="NP">NP (Número de Defeituosos)</option>
-                  <option value="C">C (Defeitos por Unidade Fixo)</option>
-                  <option value="U">U (Defeitos por Unidade Variável)</option>
+                  <option value="P">P - Proporção de Defeituosos (Binomial 0/1)</option>
+                  <option value="C">C - Contagem de Defeitos por Lote (Poisson)</option>
                 </select>
               </div>
               {tipoCarta === recomendadoAtual && (

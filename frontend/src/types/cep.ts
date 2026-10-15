@@ -75,3 +75,8 @@ export interface ZonasSigma {
   zonaB_inferior: number // -2 sigma
   zonaA_inferior: number // -3 sigma
 }
+
+import type { TipoCarta } from './api'
+
+export const isCartaAtributo = (tipo: TipoCarta | string): boolean => tipo === 'P' || tipo === 'C'
+

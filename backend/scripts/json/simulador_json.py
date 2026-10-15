@@ -131,7 +131,15 @@ def carregar_dados_json(caminho_arquivo: Path | str) -> tuple[list[dict[str, Any
         if data_base:
             ts_calculado = (data_base + timedelta(minutes=(idx - 1) * 5)).isoformat()
 
-        if isinstance(item, list):
+        if isinstance(item, (int, float)):
+            # Formato escalar para cartas com n=1 (ex: Carta C com contagens por lote)
+            subgrupos_normalizados.append({
+                "valores": [float(item)],
+                "numero_subgrupo": None,
+                "timestamp": ts_calculado,
+                "comentario": None,
+            })
+        elif isinstance(item, list):
             # Formato padrão: matriz numérica [4.96, 4.946, ...]
             valores = [float(v) for v in item]
             subgrupos_normalizados.append({
@@ -170,7 +178,7 @@ class SimuladorJsonCEP:
         email: str = "admin@cep.com",
         senha: str = "Admin123!",
         especificacoes_override: dict[str, float] | None = None,
-        alternar_modo_limites: bool = False,
+        alternar_modo_limites: bool = True,
         tipo_operacao_override: str | None = None,
         modo_limites_manual: str | None = None,
         gerenciar_carta_service: Any = None,
@@ -368,10 +376,16 @@ class SimuladorJsonCEP:
 
     def _obter_tipo_carta_apropriado(self) -> str:
         """Mapeia o 'Type' informado no JSON para as estratégias do motor CEP conforme [RN01]."""
-        tipo_json = str(self.metadados.get("type", "X")).upper()
+        tipo_json = str(self.metadados.get("type", "X")).strip().upper()
 
-        if tipo_json in ("X_R", "X_S", "I_MR"):
+        if tipo_json in ("P", "C"):
             return tipo_json
+        if tipo_json in ("X_S", "XS"):
+            return "X_S"
+        if tipo_json in ("I_MR", "IMR", "I"):
+            return "I_MR"
+        if tipo_json in ("X_R", "XR"):
+            return "X_R"
 
         # Se for "X", aplica seleção por tamanho amostral n
         if self.tamanho_subgrupo == 1:
@@ -381,10 +395,12 @@ class SimuladorJsonCEP:
         else:
             return "X_S"
 
-    def _obter_especificacoes_finais(self) -> dict[str, float]:
+    def _obter_especificacoes_finais(self) -> dict[str, float] | None:
         """Obtém ou calcula limites de engenharia (LSE, LIE e valor nominal)."""
         if self.especificacoes_override:
             return self.especificacoes_override
+
+        tipo_final = self._obter_tipo_carta_apropriado()
 
         lse_val = self.metadados.get("lse")
         lie_val = self.metadados.get("lie")
@@ -394,6 +410,10 @@ class SimuladorJsonCEP:
             lie = float(lie_val)
             nominal = round((lse + lie) / 2.0, 4)
             return {"lse": lse, "lie": lie, "valor_nominal": nominal}
+
+        # Cartas por atributos (P e C) não exigem limites de especificação
+        if tipo_final in ("P", "C"):
+            return None
 
         # Cálculo estatístico baseado na amostra se omitido no JSON
         todos_valores: list[float] = []
@@ -467,25 +487,56 @@ class SimuladorJsonCEP:
                     return self.carta_id
                 elif res.status_code == 404:
                     print(f"⚠️ Carta com ID '{id_limpo}' NÃO foi encontrada na base de dados (404 Not Found).")
-                    print("🆕 Criando automaticamente uma nova carta de controle para estes dados...")
                 else:
                     print(f"⚠️ Resposta inesperada ao consultar carta '{id_limpo}' (Status {res.status_code}): {res.text}")
                     print("🆕 Prosseguindo para criação de uma nova carta...")
         elif not id_candidato:
-            print("ℹ️ Nenhum campo 'ID' de carta informado no JSON. Modo: CALIBRAÇÃO (Nova carta)...")
+            print("ℹ️ Nenhum campo 'ID' de carta informado no JSON...")
         elif nova_carta:
             print("ℹ️ Flag --nova-carta informada. Forçando criação de nova carta isolada...")
+
+        # Se for dados de acompanhamento e a carta não foi encontrada por ID ou não tinha ID,
+        # busca automaticamente a carta de calibração existente compatível
+        if not self._is_dados_calibracao() and not nova_carta:
+            print("🔍 Buscando carta de calibração existente compatível para acompanhamento...")
+            res_todas = self.client.get("/api/v1/cartas")
+            if res_todas.status_code == 200:
+                cartas_existentes = res_todas.json()
+                cartas_compativeis = [
+                    c for c in cartas_existentes
+                    if c.get("tamanho_subgrupo") == self.tamanho_subgrupo
+                ]
+                if cartas_compativeis:
+                    carta_compativel = sorted(
+                        cartas_compativeis,
+                        key=lambda x: (x.get("total_subgrupos", 0) > 0, str(x.get("criado_em") or "")),
+                        reverse=True,
+                    )[0]
+                    self.carta_id = carta_compativel["id"]
+                    self.total_existentes = carta_compativel.get("total_subgrupos", 0)
+                    self.processo_id = carta_compativel.get("processo_id")
+                    self.modo_limites = carta_compativel.get("modo_limites", "DINAMICO")
+
+                    print("\n" + "=" * 80)
+                    print("🎯 CARTA DE CALIBRAÇÃO LOCALIZADA AUTOMATICAMENTE PARA ACOMPANHAMENTO!")
+                    print(f"🆔 ID da Carta:         {self.carta_id}")
+                    print(f"📊 Subgrupos Anteriores: {self.total_existentes} já registrados no motor CEP")
+                    print(f"⚙️ Modo Limites Atual:   {self.modo_limites}")
+                    print("=" * 80 + "\n")
+
+                    self._aplicar_gerenciamento_modo_limites()
+                    return self.carta_id
 
         goal = self.metadados.get("goal") or "Calibrar"
         created_by = self.metadados.get("created_by") or "Operador"
         unit = self.metadados.get("unit") or "mm"
         measured_at = self.metadados.get("measured_at") or datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
 
-        # Código identificador da linha fabril
+        # Código identificador da linha fabril consistente
         codigo_final = (
             codigo_linha
             or self.metadados.get("codigo_linha")
-            or f"LINHA-{goal.upper()}"
+            or f"LINHA-{created_by.upper()}"
         )
 
         if nova_carta:
@@ -580,6 +631,8 @@ class SimuladorJsonCEP:
             "valores": valores,
             "numero_subgrupo": num_sub,
             "timestamp": ts,
+            "goal": self.metadados.get("goal"),
+            "modo_limites": self.modo_limites,
         }
 
         t_inicio = time.perf_counter()
@@ -675,7 +728,15 @@ class SimuladorJsonCEP:
         print(f"• Responsável:       {self.metadados.get('created_by', 'Henrique')}")
         print(f"• Objetivo (Goal):   {self.metadados.get('goal', 'Calibrar')}")
         print(f"• Unidade:           {unit}")
-        print(f"• Tolerâncias (Eng): LIE = {specs['lie']} {unit} | LSE = {specs['lse']} {unit} (Alvo: {specs['valor_nominal']} {unit})")
+
+    # Em backend/scripts/json/simulador_json.py (por volta da linha 698):
+        if specs and specs.get("lie") is not None and specs.get("lse") is not None:
+            print(
+                f"• Tolerâncias (Eng): LIE = {specs['lie']} {unit} | "
+                f"LSE = {specs['lse']} {unit} (Alvo: {specs.get('valor_nominal', 'N/A')} {unit})"
+            )
+        else:
+            print("• Tolerâncias (Eng): Não aplicável (Carta de Atributos sem LIE/LSE)")
         print(f"• Histórico Prévio:  {self.total_existentes} subgrupo(s) já existentes na carta")
         print(f"• Subgrupos no JSON: {total_disponivel} (Transmitindo: {total_a_enviar} subgrupos de n={self.tamanho_subgrupo})")
         print(f"• Intervalo Envio:   {self.intervalo:.1f} s")
@@ -717,7 +778,11 @@ class SimuladorJsonCEP:
         print("=" * 80)
 
         matriz = [sg["valores"] for sg in self.subgrupos]
-        payload = {"amostras": matriz}
+        payload = {
+            "amostras": matriz,
+            "goal": self.metadados.get("goal"),
+            "modo_limites": self.modo_limites,
+        }
 
         t_inicio = time.perf_counter()
         response = self.client.post(
@@ -867,10 +932,11 @@ def main() -> None:
     parser.add_argument(
         "--alternar-modo-limites",
         action="store_true",
+        default=True,
         help=(
             "Alterna o modo de limites via GerenciarCartaService.alternar_modo_limites: "
             "define limites FIXOS caso a carta existente receba dados de acompanhamento, "
-            "ou DINÂMICOS caso receba novos dados de calibração"
+            "ou DINÂMICOS caso receba novos dados de calibração (Padrão: True)"
         ),
     )
     parser.add_argument(
@@ -884,6 +950,12 @@ def main() -> None:
         dest="alternar_modo_limites",
         action="store_true",
         help="Alias para --alternar-modo-limites",
+    )
+    parser.add_argument(
+        "--manter-modo",
+        dest="alternar_modo_limites",
+        action="store_false",
+        help="Desativa o chaveamento automático de modo de limites",
     )
     parser.add_argument(
         "--acompanhamento",

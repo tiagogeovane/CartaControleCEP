@@ -39,3 +39,6 @@ XX-descricao-da-feature.md
 | **FEAT-04** | WebSockets Nativos & Notificação Reativa | Fase 4 | ✅ Concluído | [04-tempo-real-websockets.md](./04-tempo-real-websockets.md) |
 | **FEAT-05** | Camada de Apresentação & API REST (FastAPI) | Fase 5 | ✅ Concluído | [05-camada-apresentacao-api-rest.md](./05-camada-apresentacao-api-rest.md) |
 | **FEAT-06** | Simulador IoT, Testes E2E & Containerização Final | Fase 6 | ✅ Concluído | [06-simulador-e2e-containerizacao.md](./06-simulador-e2e-containerizacao.md) |
+| **FEAT-07** | Limites Dinâmicos, Avaliação Retroativa (Fase 1) & Regras Nelson | Fase 1 CEP | ✅ Concluído | [07-correcao-limites-dinamicos-avaliacao-retroativa-fase1.md](./07-correcao-limites-dinamicos-avaliacao-retroativa-fase1.md) |
+| **FEAT-08** | Cartas de Controle por Atributos (Gráficos P e C) | Atributos CEP | ✅ Concluído | [cartas_atributos_p_c.md](./cartas_atributos_p_c.md) |
+

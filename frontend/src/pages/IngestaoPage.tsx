@@ -4,6 +4,7 @@ import {
   CheckCircle2,
   FileSpreadsheet,
   Keyboard,
+  Lock,
   Send,
   Sparkles,
   Upload,
@@ -13,9 +14,11 @@ import { Badge } from '@/components/common/Badge'
 import { cartasApi, ingestaoApi } from '@/services/api'
 import { useCEPStore } from '@/stores/cepStore'
 import type { CartaControleResponse, SubgrupoResponse } from '@/types/api'
+import { useQueryClient } from '@tanstack/react-query'
 import { formatarNomeCarta } from '@/utils/formatters'
 
 export function IngestaoPage() {
+  const queryClient = useQueryClient()
   const { cartaDetalhes, cartaAtivaId, setCartaAtiva, adicionarSubgrupo } = useCEPStore()
   const [cartas, setCartas] = useState<CartaControleResponse[]>([])
   const [cartaSelecionada, setCartaSelecionada] = useState<CartaControleResponse | null>(
@@ -35,6 +38,7 @@ export function IngestaoPage() {
   // --- Estado da Importação em Lote ---
   const [arquivoSelecionado, setArquivoSelecionado] = useState<File | null>(null)
   const [loteParseado, setLoteParseado] = useState<number[][] | null>(null)
+  const [goalDetectado, setGoalDetectado] = useState<string | null>(null)
   const [erroLote, setErroLote] = useState<string | null>(null)
   const [isSubmittingLote, setIsSubmittingLote] = useState(false)
   const [resultadoLote, setResultadoLote] = useState<{
@@ -126,6 +130,10 @@ export function IngestaoPage() {
       return
     }
 
+    const tipo = cartaSelecionada.tipo_carta
+    const isP = tipo === 'P'
+    const isC = tipo === 'C'
+
     // Validar se todos os valores foram preenchidos
     const numeros: number[] = []
     for (let i = 0; i < n; i++) {
@@ -133,6 +141,16 @@ export function IngestaoPage() {
       const num = parseFloat(v)
       if (isNaN(num)) {
         setErroManual(`Amostra #${i + 1} contém um valor numérico inválido ou em branco.`)
+        inputsRef.current[i]?.focus()
+        return
+      }
+      if (isP && (num < 0 || num > 1)) {
+        setErroManual(`Na Carta P, use 0 (Bom) ou 1 (Ruim), ou proporção no intervalo [0.0, 1.0].`)
+        inputsRef.current[i]?.focus()
+        return
+      }
+      if (isC && (num < 0 || !Number.isInteger(num))) {
+        setErroManual(`Na Carta C, a contagem de defeitos deve ser um número inteiro não-negativo.`)
         inputsRef.current[i]?.focus()
         return
       }
@@ -148,6 +166,19 @@ export function IngestaoPage() {
 
       setUltimoResultadoManual(subgrupo)
       adicionarSubgrupo(subgrupo)
+
+      // Atualizar a carta no store e invalidar cache do react-query
+      try {
+        const cartaAtualizada = await cartasApi.obterPorId(cartaSelecionada.id)
+        setCartaSelecionada(cartaAtualizada)
+        if (cartaAtivaId === cartaSelecionada.id) {
+          setCartaAtiva(cartaAtualizada)
+        }
+      } catch {
+        // Falha não impeditiva
+      }
+      queryClient.invalidateQueries({ queryKey: ['cartas'] })
+      queryClient.invalidateQueries({ queryKey: ['subgrupos', cartaSelecionada.id] })
 
       // Limpar campos e focar no primeiro input para a próxima leitura sem retirar as mãos do teclado
       setValoresManuais(Array(n).fill(''))
@@ -171,6 +202,9 @@ export function IngestaoPage() {
     try {
       if (nomeArquivo.endsWith('.json')) {
         const json = JSON.parse(conteudo)
+        const goalJson = json.Goal || json.goal || json.Meta || json.meta
+        setGoalDetectado(goalJson ? String(goalJson) : null)
+
         const amostrasArray = Array.isArray(json)
           ? json
           : json.Data || json.data || json.amostras || json.subgrupos || json.dados
@@ -180,13 +214,16 @@ export function IngestaoPage() {
 
         const linhasValidadas: number[][] = []
         for (let i = 0; i < amostrasArray.length; i++) {
-          const linha = amostrasArray[i]
+          let linha = amostrasArray[i]
+          if (typeof linha === 'number') {
+            linha = [linha]
+          }
           if (!Array.isArray(linha) || linha.length !== n) {
             throw new Error(
               `Linha ${i + 1} tem ${linha?.length || 0} itens. Esperado subgrupo com n=${n}.`
             )
           }
-          linhasValidadas.push(linha.map((val) => Number(val)))
+          linhasValidadas.push(linha.map((val: any) => Number(val)))
         }
         setLoteParseado(linhasValidadas)
       } else {
@@ -269,6 +306,7 @@ export function IngestaoPage() {
       setErroLote(null)
       const res = await ingestaoApi.importarLote(cartaSelecionada.id, {
         amostras: loteParseado,
+        goal: goalDetectado || undefined,
       })
 
       const anomalias = res.subgrupos.filter((sg) => sg.fora_de_controle).length
@@ -280,9 +318,23 @@ export function IngestaoPage() {
       // Atualizar o buffer da store
       res.subgrupos.forEach((sg) => adicionarSubgrupo(sg))
 
+      // Atualizar a carta no store e invalidar cache do react-query
+      try {
+        const cartaAtualizada = await cartasApi.obterPorId(cartaSelecionada.id)
+        setCartaSelecionada(cartaAtualizada)
+        if (cartaAtivaId === cartaSelecionada.id) {
+          setCartaAtiva(cartaAtualizada)
+        }
+      } catch {
+        // Falha não impeditiva
+      }
+      queryClient.invalidateQueries({ queryKey: ['cartas'] })
+      queryClient.invalidateQueries({ queryKey: ['subgrupos', cartaSelecionada.id] })
+
       // Limpar seleção
       setLoteParseado(null)
       setArquivoSelecionado(null)
+      setGoalDetectado(null)
       if (fileInputRef.current) fileInputRef.current.value = ''
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Falha ao enviar lote de amostras.'
@@ -403,21 +455,65 @@ export function IngestaoPage() {
                       htmlFor={`amostra-input-${i}`}
                       className="block text-3xs font-mono uppercase text-slate-400 font-bold"
                     >
-                      Amostra #{i + 1}
+                      {cartaSelecionada?.tipo_carta === 'P' ? `Item #${i + 1}` : cartaSelecionada?.tipo_carta === 'C' ? `Lote / Leitura #${i + 1}` : `Amostra #${i + 1}`}
                     </label>
-                    <input
-                      id={`amostra-input-${i}`}
-                      ref={(el) => {
-                        inputsRef.current[i] = el
-                      }}
-                      type="text"
-                      inputMode="decimal"
-                      placeholder="0.00"
-                      value={valoresManuais[i] || ''}
-                      onChange={(e) => handleInputChange(i, e.target.value)}
-                      onKeyDown={(e) => handleKeyDown(i, e)}
-                      className="w-full px-3 py-2 text-sm font-mono text-slate-100 bg-slate-950 border border-slate-700 rounded-xl focus:outline-hidden focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors text-center"
-                    />
+                    {cartaSelecionada?.tipo_carta === 'P' ? (
+                      <div className="space-y-1">
+                        <div className="grid grid-cols-2 gap-1">
+                          <button
+                            type="button"
+                            onClick={() => handleInputChange(i, '0')}
+                            className={`py-1 text-2xs font-bold rounded-lg border transition-colors cursor-pointer ${
+                              valoresManuais[i] === '0'
+                                ? 'bg-emerald-600 border-emerald-500 text-white shadow-sm'
+                                : 'bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-800'
+                            }`}
+                          >
+                            0 (Bom)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleInputChange(i, '1')}
+                            className={`py-1 text-2xs font-bold rounded-lg border transition-colors cursor-pointer ${
+                              valoresManuais[i] === '1'
+                                ? 'bg-red-600 border-red-500 text-white shadow-sm'
+                                : 'bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-800'
+                            }`}
+                          >
+                            1 (Ruim)
+                          </button>
+                        </div>
+                        <input
+                          id={`amostra-input-${i}`}
+                          ref={(el) => {
+                            inputsRef.current[i] = el
+                          }}
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="0 ou 1"
+                          value={valoresManuais[i] || ''}
+                          onChange={(e) => handleInputChange(i, e.target.value)}
+                          onKeyDown={(e) => handleKeyDown(i, e)}
+                          className="w-full px-2 py-1 text-xs font-mono text-slate-100 bg-slate-950 border border-slate-700 rounded-lg focus:outline-hidden focus:border-blue-500 text-center"
+                        />
+                      </div>
+                    ) : (
+                      <input
+                        id={`amostra-input-${i}`}
+                        ref={(el) => {
+                          inputsRef.current[i] = el
+                        }}
+                        type={cartaSelecionada?.tipo_carta === 'C' ? 'number' : 'text'}
+                        step={cartaSelecionada?.tipo_carta === 'C' ? '1' : 'any'}
+                        min={cartaSelecionada?.tipo_carta === 'C' ? '0' : undefined}
+                        inputMode={cartaSelecionada?.tipo_carta === 'C' ? 'numeric' : 'decimal'}
+                        placeholder={cartaSelecionada?.tipo_carta === 'C' ? '0' : '0.00'}
+                        value={valoresManuais[i] || ''}
+                        onChange={(e) => handleInputChange(i, e.target.value)}
+                        onKeyDown={(e) => handleKeyDown(i, e)}
+                        className="w-full px-3 py-2 text-sm font-mono text-slate-100 bg-slate-950 border border-slate-700 rounded-xl focus:outline-hidden focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors text-center"
+                      />
+                    )}
                   </div>
                 ))}
               </div>
@@ -465,12 +561,11 @@ export function IngestaoPage() {
                       Subgrupo #{ultimoResultadoManual.numero_subgrupo} processado com sucesso
                     </h3>
                     <p className="text-xs opacity-80 mt-0.5">
-                      Média (X̄): {ultimoResultadoManual.estatisticas.media_x.toFixed(3)} |{' '}
-                      {n > 10 ? 'Desvio (s)' : 'Amplitude (R)'}:{' '}
-                      {(n > 10
-                        ? ultimoResultadoManual.estatisticas.desvio_s
-                        : ultimoResultadoManual.estatisticas.amplitude_r
-                      ).toFixed(3)}
+                      {cartaSelecionada?.tipo_carta === 'P'
+                        ? `Proporção (p): ${(ultimoResultadoManual.estatisticas.media_x * 100).toFixed(1)}% | Defeituosos: ${Math.round(ultimoResultadoManual.estatisticas.amplitude_r)} de ${n}`
+                        : cartaSelecionada?.tipo_carta === 'C'
+                          ? `Total de Defeitos (c): ${Math.round(ultimoResultadoManual.estatisticas.media_x)} | Desvio: ${ultimoResultadoManual.estatisticas.desvio_s.toFixed(3)}`
+                          : `Média (X̄): ${ultimoResultadoManual.estatisticas.media_x.toFixed(3)} | ${n > 10 ? 'Desvio (s)' : 'Amplitude (R)'}: ${(n > 10 ? ultimoResultadoManual.estatisticas.desvio_s : ultimoResultadoManual.estatisticas.amplitude_r).toFixed(3)}`}
                     </p>
                   </div>
                 </div>
@@ -557,6 +652,30 @@ export function IngestaoPage() {
             {/* Pré-visualização dos Dados Parseados */}
             {loteParseado && (
               <div className="mt-6 space-y-3">
+                {goalDetectado && (
+                  <div
+                    data-testid="banner-goal-detectado"
+                    className="flex items-center gap-2 p-3 rounded-xl bg-slate-900 border border-slate-800 text-xs"
+                  >
+                    {goalDetectado.toLowerCase().includes('acompanh') ||
+                    goalDetectado.toLowerCase().includes('monitor') ? (
+                      <span className="flex items-center gap-1.5 text-purple-300 font-medium">
+                        <Lock className="w-4 h-4 text-purple-400 shrink-0" />
+                        <span>
+                          Objetivo Detectado: <strong>{goalDetectado}</strong> — Os limites de controle serão <strong>congelados</strong> (Modo FIXO).
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1.5 text-blue-300 font-medium">
+                        <Sparkles className="w-4 h-4 text-blue-400 shrink-0" />
+                        <span>
+                          Objetivo Detectado: <strong>{goalDetectado}</strong> — Os limites de controle serão <strong>recalculados</strong> (Modo DINÂMICO).
+                        </span>
+                      </span>
+                    )}
+                  </div>
+                )}
+
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-semibold text-slate-300">
                     Pré-visualização ({loteParseado.length} subgrupos identificados)

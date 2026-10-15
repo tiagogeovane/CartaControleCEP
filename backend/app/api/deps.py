@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.application.services.analise_capacidade import AnaliseCapacidadeService
 from app.application.services.gerenciar_carta import GerenciarCartaService
 from app.application.services.processar_subgrupo import ProcessamentoSubgrupoService
+from app.application.services.simulacao_probabilistica import SimulacaoProbabilisticaService
 from app.core.config import settings
 from app.core.database import get_db_session
 from app.core.security import decodificar_token
@@ -82,10 +83,12 @@ async def get_subgrupo_repository(
 async def get_gerenciar_carta_service(
     carta_repo: Annotated[ICartaControleRepository, Depends(get_carta_repository)],
     processo_repo: Annotated[IProcessoRepository, Depends(get_processo_repository)],
+    manager: Annotated[ConnectionManager, Depends(get_connection_manager)],
 ) -> GerenciarCartaService:
     return GerenciarCartaService(
         carta_repository=carta_repo,
         processo_repository=processo_repo,
+        connection_manager=manager,
     )
 
 
@@ -93,6 +96,12 @@ async def get_analise_capacidade_service(
     carta_repo: Annotated[ICartaControleRepository, Depends(get_carta_repository)],
 ) -> AnaliseCapacidadeService:
     return AnaliseCapacidadeService(carta_repository=carta_repo)
+
+
+async def get_simulacao_probabilistica_service(
+    carta_repo: Annotated[ICartaControleRepository, Depends(get_carta_repository)],
+) -> SimulacaoProbabilisticaService:
+    return SimulacaoProbabilisticaService(carta_repository=carta_repo)
 
 
 async def get_processamento_subgrupo_service(

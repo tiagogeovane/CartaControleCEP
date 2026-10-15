@@ -10,6 +10,7 @@ from app.domain.rules.nelson_rules import (
     Regra6QuatroDeCincoZonaB,
     Regra7QuinzeZonaC,
     Regra8OitoForaZonaC,
+    RegraDispersaoForaLimites,
 )
 from app.domain.value_objects.limites import LimitesControle
 from app.domain.value_objects.violacao import ViolacaoRegra
@@ -18,7 +19,11 @@ from app.domain.value_objects.violacao import ViolacaoRegra
 class DetectorRegrasNelson:
     """Avaliador e agregador (Composite) das 8 Regras de Nelson para detecção de anomalias em CEP."""
 
-    def __init__(self, regras: list[IRegraNelson] | None = None) -> None:
+    def __init__(
+        self,
+        regras: list[IRegraNelson] | None = None,
+        regra_dispersao: RegraDispersaoForaLimites | None = None,
+    ) -> None:
         self._regras: list[IRegraNelson] = (
             regras
             if regras is not None
@@ -33,6 +38,7 @@ class DetectorRegrasNelson:
                 Regra8OitoForaZonaC(),
             ]
         )
+        self._regra_dispersao = regra_dispersao or RegraDispersaoForaLimites()
 
     @property
     def regras_ativas(self) -> list[IRegraNelson]:
@@ -53,6 +59,8 @@ class DetectorRegrasNelson:
         self,
         historico_medias: Sequence[float],
         limites: LimitesControle,
+        historico_dispersoes: Sequence[float] | None = None,
+        numero_subgrupo: int | None = None,
     ) -> list[ViolacaoRegra]:
         """Executa todas as regras ativas sobre a sequência histórica e consolida as anomalias detectadas."""
         if not historico_medias:
@@ -62,6 +70,22 @@ class DetectorRegrasNelson:
         for regra in self._regras:
             resultado = regra.avaliar(historico_medias, limites)
             if resultado is not None:
+                if numero_subgrupo is not None and resultado.numero_subgrupo == len(historico_medias):
+                    resultado = ViolacaoRegra(
+                        codigo_regra=resultado.codigo_regra,
+                        descricao=resultado.descricao,
+                        numero_subgrupo=numero_subgrupo,
+                        pontos_violadores=resultado.pontos_violadores,
+                    )
                 violacoes.append(resultado)
+
+        if historico_dispersoes:
+            violacao_disp = self._regra_dispersao.avaliar(
+                historico_dispersoes=historico_dispersoes,
+                limites=limites,
+                numero_subgrupo=numero_subgrupo if numero_subgrupo is not None else len(historico_medias),
+            )
+            if violacao_disp is not None:
+                violacoes.append(violacao_disp)
 
         return violacoes

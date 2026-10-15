@@ -1,9 +1,13 @@
 from collections.abc import Sequence
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from app.domain.entities.subgrupo import Subgrupo
 from app.domain.value_objects.limites import LimitesControle, LimitesEspecificacao
+
+if TYPE_CHECKING:
+    from app.domain.rules.detector import DetectorRegrasNelson
 
 
 @dataclass
@@ -64,3 +68,74 @@ class CartaControle:
     @property
     def total_subgrupos(self) -> int:
         return len(self.subgrupos)
+
+    def reavaliar_historico_completo(
+        self,
+        detector: "DetectorRegrasNelson",
+        limites: LimitesControle | None = None,
+    ) -> list[Subgrupo]:
+        """Reavalia retroativamente as Regras de Nelson para todos os subgrupos da carta.
+
+        Sempre que os limites de controle forem recalculados no modo DINÂMICO (ou
+        ao término de uma ingestão em lote / calibração Fase 1), todos os subgrupos
+        do histórico devem ser reavaliados contra os limites finais consolidados.
+        """
+        limites_avaliacao = limites or self.limites_atuais
+        if limites_avaliacao is None:
+            return self.subgrupos
+
+        return reavaliar_historico_completo(
+            subgrupos=self.subgrupos,
+            limites=limites_avaliacao,
+            detector=detector,
+            tipo_carta=self.tipo_carta,
+            tamanho_subgrupo=self.tamanho_subgrupo,
+        )
+
+
+def reavaliar_historico_completo(
+    subgrupos: Sequence[Subgrupo],
+    limites: LimitesControle,
+    detector: "DetectorRegrasNelson",
+    tipo_carta: str = "X_R",
+    tamanho_subgrupo: int = 5,
+) -> list[Subgrupo]:
+    """Reavalia retroativamente as Regras de Nelson para todos os subgrupos informados."""
+    if not subgrupos or limites is None:
+        return list(subgrupos)
+
+    subgrupos_ordenados = sorted(subgrupos, key=lambda s: s.numero_subgrupo)
+    medias_todas = [s.estatisticas.media_x for s in subgrupos_ordenados]
+
+    tipo = tipo_carta.upper().replace("-", "_")
+    is_atributo = tipo in ("P", "C")
+    is_imr = not is_atributo and ("I_MR" in tipo or "IMR" in tipo or "INDIVIDUAL" in tipo or (tamanho_subgrupo == 1 and "X_R" in tipo))
+    is_xs = not is_atributo and ("X_S" in tipo or "XS" in tipo or (tamanho_subgrupo > 10 and "X_R" in tipo))
+
+    for idx, sub in enumerate(subgrupos_ordenados):
+        medias_ate_idx = medias_todas[: idx + 1]
+
+        if is_atributo:
+            dispersoes_ate_idx = []
+        elif is_imr:
+            if len(medias_ate_idx) >= 2:
+                dispersoes_ate_idx = [
+                    abs(medias_ate_idx[i] - medias_ate_idx[i - 1])
+                    for i in range(1, len(medias_ate_idx))
+                ]
+            else:
+                dispersoes_ate_idx = []
+        elif is_xs:
+            dispersoes_ate_idx = [s.estatisticas.desvio_s for s in subgrupos_ordenados[: idx + 1]]
+        else:
+            dispersoes_ate_idx = [s.estatisticas.amplitude_r for s in subgrupos_ordenados[: idx + 1]]
+
+        violacoes = detector.avaliar(
+            historico_medias=medias_ate_idx,
+            limites=limites,
+            historico_dispersoes=dispersoes_ate_idx,
+            numero_subgrupo=sub.numero_subgrupo,
+        )
+        sub.definir_violacoes(violacoes)
+
+    return subgrupos_ordenados

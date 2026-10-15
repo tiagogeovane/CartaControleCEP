@@ -70,6 +70,8 @@ async def ingerir_amostra(
         amostras_valores=dados.valores,
         timestamp=dados.timestamp,
         numero_subgrupo=dados.numero_subgrupo,
+        goal=dados.goal,
+        modo_limites=dados.modo_limites,
     )
     return _formatar_subgrupo_response(subgrupo)
 
@@ -89,6 +91,8 @@ async def importar_lote_amostras(
     subgrupos = await service.executar_lote(
         carta_id=carta_id,
         lote_amostras=dados.amostras,
+        goal=dados.goal,
+        modo_limites=dados.modo_limites,
     )
     return ImportacaoLoteResponse(
         carta_id=carta_id,

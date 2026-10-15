@@ -14,6 +14,11 @@ from app.api.schemas.carta import (
     ModoLimitesUpdate,
 )
 from app.api.schemas.processo import ProcessoCreate, ProcessoResponse
+from app.api.schemas.simulacao import (
+    PontoDistribuicaoSchema,
+    SimulacaoBinomialRequest,
+    SimulacaoBinomialResponse,
+)
 from app.api.schemas.subgrupo import (
     AmostraIngestaoRequest,
     EstatisticasResponse,
@@ -36,8 +41,11 @@ __all__ = [
     "LimitesEspecificacaoSchema",
     "LoginRequest",
     "ModoLimitesUpdate",
+    "PontoDistribuicaoSchema",
     "ProcessoCreate",
     "ProcessoResponse",
+    "SimulacaoBinomialRequest",
+    "SimulacaoBinomialResponse",
     "SubgrupoResponse",
     "TokenResponse",
     "UsuarioCreate",

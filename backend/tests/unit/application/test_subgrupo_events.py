@@ -53,6 +53,10 @@ def test_subgrupo_processado_event_to_dict_completo():
     assert data["limites"]["lc"] == 25.0
     assert data["limites"]["lsc"] == 25.75
     assert data["limites"]["lic"] == 24.25
+    assert data["limites"]["sigma_estimado"] == 0.25
+    assert data["limites"]["lc_dispersao"] is None
+    assert data["limites"]["lsc_dispersao"] is None
+    assert data["limites"]["lic_dispersao"] is None
     assert data["status_controle"]["fora_de_controle"] is True
     assert len(data["status_controle"]["regras_violadas"]) == 1
     assert data["status_controle"]["regras_violadas"][0]["codigo_regra"] == "REGRA_1"

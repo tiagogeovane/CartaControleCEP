@@ -3,12 +3,20 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class LimitesControle:
-    """Objeto de valor imutável representando os limites estatísticos de controle da carta."""
+    """Objeto de valor imutável representando os limites estatísticos de controle da carta.
+
+    `lc`, `lsc` e `lic` referem-se à carta principal (posição: X-barra ou I).
+    Os campos `*_dispersao` são opcionais e referem-se à carta secundária de
+    dispersão (R, s ou MR), permitindo detectar anomalias de variabilidade.
+    """
 
     lc: float
     lsc: float
     lic: float
     sigma_estimado: float
+    lc_dispersao: float | None = None
+    lsc_dispersao: float | None = None
+    lic_dispersao: float | None = None
 
     def __post_init__(self) -> None:
         if not (self.lic <= self.lc <= self.lsc):
@@ -19,6 +27,23 @@ class LimitesControle:
             raise ValueError(
                 f"Invariante estatística violada: Sigma estimado ({self.sigma_estimado}) não pode ser negativo."
             )
+        if self.possui_limites_dispersao and not (
+            self.lic_dispersao <= self.lc_dispersao <= self.lsc_dispersao  # type: ignore[operator]
+        ):
+            raise ValueError(
+                "Invariante estatística violada nos limites de dispersão: "
+                f"LIC ({self.lic_dispersao}) <= LC ({self.lc_dispersao}) <= LSC ({self.lsc_dispersao}) "
+                "não é satisfeita."
+            )
+
+    @property
+    def possui_limites_dispersao(self) -> bool:
+        """Indica se os três limites da carta secundária de dispersão foram informados."""
+        return (
+            self.lc_dispersao is not None
+            and self.lsc_dispersao is not None
+            and self.lic_dispersao is not None
+        )
 
     @property
     def amplitude_limites(self) -> float:

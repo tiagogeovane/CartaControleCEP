@@ -1,4 +1,4 @@
-import { Download, FileText, Pause, Play } from 'lucide-react'
+import { Download, FileText, Lock, Pause, Play, TrendingUp } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export interface ControlesCartaProps {
@@ -9,6 +9,7 @@ export interface ControlesCartaProps {
   onExportarPNG: () => void
   onGerarRelatorioPDF?: () => void
   totalSubgrupos: number
+  modoLimites?: 'DINAMICO' | 'FIXO'
   className?: string
 }
 
@@ -27,6 +28,7 @@ export function ControlesCarta({
   onExportarPNG,
   onGerarRelatorioPDF,
   totalSubgrupos,
+  modoLimites,
   className,
 }: ControlesCartaProps) {
   return (
@@ -65,6 +67,31 @@ export function ControlesCarta({
           ({totalSubgrupos} subgrupos)
         </span>
       </div>
+
+      {/* Indicador de Modo dos Limites de Controle */}
+      {modoLimites && (
+        <div className="flex items-center">
+          {modoLimites === 'FIXO' ? (
+            <span
+              data-testid="badge-modo-fixo"
+              className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg bg-purple-950/80 text-purple-300 border border-purple-700/70 shadow-xs"
+              title="Modo FIXO: Os limites de controle foram calibrados e permanecem rigorosamente congelados para acompanhamento contínuo da produção."
+            >
+              <Lock className="w-3.5 h-3.5 text-purple-400" />
+              <span>Limites Fixos (Acompanhamento)</span>
+            </span>
+          ) : (
+            <span
+              data-testid="badge-modo-dinamico"
+              className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold rounded-lg bg-blue-950/80 text-blue-300 border border-blue-700/70 shadow-xs"
+              title="Modo DINÂMICO: Os limites de controle são recalculados iterativamente com cada novo subgrupo nesta fase de calibração."
+            >
+              <TrendingUp className="w-3.5 h-3.5 text-blue-400" />
+              <span>Limites Dinâmicos (Calibração)</span>
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Ações: Congelar e Exportar */}
       <div className="flex items-center gap-2">

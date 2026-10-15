@@ -13,6 +13,7 @@ import { ControlesCarta } from './ControlesCarta'
 import { CartaXRChart } from './CartaXRChart'
 import { CartaXSChart } from './CartaXSChart'
 import { CartaIMRChart } from './CartaIMRChart'
+import { CartaAtributosChart } from './CartaAtributosChart'
 import { ModalRelatorioPDF } from './ModalRelatorioPDF'
 
 export interface CartaControleContainerProps {
@@ -70,6 +71,7 @@ export const CartaControleContainer = forwardRef<BaseChartRef, CartaControleCont
     especificacoesProp !== undefined ? especificacoesProp : storeCartaDetalhes?.especificacoes
   const tamanhoSubgrupo =
     tamanhoSubgrupoProp ?? storeCartaDetalhes?.tamanho_subgrupo ?? (subgrupos[0]?.valores_brutos.length || 5)
+  const modoLimites = storeCartaDetalhes?.modo_limites || 'DINAMICO'
 
   // Determinar o tipo efetivo da carta (X_R, X_S ou I_MR)
   const tipoCarta = useMemo(() => {
@@ -152,6 +154,9 @@ export const CartaControleContainer = forwardRef<BaseChartRef, CartaControleCont
         return <CartaXSChart {...commonProps} />
       case 'I_MR':
         return <CartaIMRChart {...commonProps} />
+      case 'P':
+      case 'C':
+        return <CartaAtributosChart {...commonProps} tipoCarta={tipoCarta} />
       case 'X_R':
       default:
         return <CartaXRChart {...commonProps} />
@@ -182,8 +187,9 @@ export const CartaControleContainer = forwardRef<BaseChartRef, CartaControleCont
       lsc: lscVal != null ? lscVal.toFixed(3) : '--',
       lic: licVal != null ? licVal.toFixed(3) : '--',
       sigma: sigmaVal != null ? sigmaVal.toFixed(3) : '--',
+      modoLimites,
     }
-  }, [subgrupos, limites])
+  }, [subgrupos, limites, modoLimites])
 
   return (
     <div
@@ -199,6 +205,7 @@ export const CartaControleContainer = forwardRef<BaseChartRef, CartaControleCont
           onExportarPNG={handleExportarPNG}
           onGerarRelatorioPDF={() => setIsModalRelatorioAberto(true)}
           totalSubgrupos={subgrupos.length}
+          modoLimites={modoLimites}
         />
       )}
 
@@ -209,7 +216,7 @@ export const CartaControleContainer = forwardRef<BaseChartRef, CartaControleCont
         {summaryMetrics && (
           <div
             data-testid="estagio-resumo-bar"
-            className="mt-4 pt-3.5 border-t border-slate-800/80 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5"
+            className="mt-4 pt-3.5 border-t border-slate-800/80 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2.5"
           >
             <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-slate-950/50 border border-slate-800/60">
               <span className="text-3xs font-medium text-slate-400 uppercase tracking-wider">
@@ -263,6 +270,21 @@ export const CartaControleContainer = forwardRef<BaseChartRef, CartaControleCont
                 }`}
               >
                 {summaryMetrics.taxaConformidade}%
+              </span>
+            </div>
+            <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-slate-950/50 border border-slate-800/60">
+              <span className="text-3xs font-medium text-slate-400 uppercase tracking-wider">
+                Modo Limites
+              </span>
+              <span
+                data-testid="resumo-modo-limites"
+                className={`text-xs font-bold font-mono mt-0.5 tabular-nums ${
+                  summaryMetrics.modoLimites === 'FIXO'
+                    ? 'text-purple-400'
+                    : 'text-blue-400'
+                }`}
+              >
+                {summaryMetrics.modoLimites === 'FIXO' ? '🔒 FIXO' : '📈 DINÂMICO'}
               </span>
             </div>
           </div>

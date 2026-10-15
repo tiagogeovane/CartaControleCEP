@@ -11,6 +11,8 @@ import type {
   ModoLimitesUpdate,
   ProcessoCreate,
   ProcessoResponse,
+  SimulacaoBinomialRequest,
+  SimulacaoBinomialResponse,
   SubgrupoResponse,
   TokenResponse,
   UsuarioCreate,
@@ -128,6 +130,17 @@ export const cartasApi = {
     dados: ModoLimitesUpdate
   ): Promise<CartaControleResponse> => {
     const { data } = await api.patch<CartaControleResponse>(`/cartas/${cartaId}/modo`, dados)
+    return data
+  },
+
+  calcularSimulacaoBinomial: async (
+    cartaId: string,
+    dados: SimulacaoBinomialRequest
+  ): Promise<SimulacaoBinomialResponse> => {
+    const { data } = await api.post<SimulacaoBinomialResponse>(
+      `/cartas/${cartaId}/simulacao-binomial`,
+      dados
+    )
     return data
   },
 }

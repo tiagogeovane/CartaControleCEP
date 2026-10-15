@@ -22,6 +22,10 @@ export interface LimitesControleWebSocket {
   lc: number
   lsc: number
   lic: number
+  sigma_estimado?: number
+  lc_dispersao?: number | null
+  lsc_dispersao?: number | null
+  lic_dispersao?: number | null
 }
 
 export interface StatusControleWebSocket {
@@ -39,17 +43,26 @@ export interface NovoSubgrupoProcessadoEvent {
   carta_id: string
   timestamp: string
   numero_subgrupo: number
+  modo_limites?: 'DINAMICO' | 'FIXO'
   estatisticas: EstatisticasSubgrupoWebSocket
   limites: LimitesControleWebSocket
   status_controle: StatusControleWebSocket
   capacidade?: CapacidadeRapidaWebSocket
 }
 
+export interface ModoLimitesAlteradoEvent {
+  event: 'MODO_LIMITES_ALTERADO'
+  carta_id: string
+  modo_limites: 'DINAMICO' | 'FIXO'
+}
+
 export type WebSocketIncomingMessage =
   | ConexaoEstabelecidaEvent
   | NovoSubgrupoProcessadoEvent
+  | ModoLimitesAlteradoEvent
   | { type: 'pong' }
 
 export interface WebSocketPingMessage {
   type: 'ping'
 }
+

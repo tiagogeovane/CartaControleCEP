@@ -189,3 +189,77 @@ class TestDetectorRegrasNelson:
         detector.adicionar_regra(Regra1TresSigma())
         assert len(detector.regras_ativas) == 1
         assert detector.avaliar([], limites_padrao) == []
+
+    def test_detector_identifica_anomalia_dispersao_subgrupo_009(self):
+        # Limites da carta do relatório para n=5:
+        limites = LimitesControle(
+            lc=4.9607,
+            lsc=4.9733,
+            lic=4.9480,
+            sigma_estimado=0.0094,
+            lc_dispersao=0.02195,
+            lsc_dispersao=0.0464,
+            lic_dispersao=0.0,
+        )
+        # Subgrupo #009 possui média 4.9540 (dentro de [4.9480, 4.9733]) e R = 0.0560 (> 0.0464)
+        historico_medias = [4.9540]
+        historico_dispersoes = [0.0560]
+
+        detector = DetectorRegrasNelson()
+        violacoes = detector.avaliar(
+            historico_medias=historico_medias,
+            limites=limites,
+            historico_dispersoes=historico_dispersoes,
+            numero_subgrupo=9,
+        )
+
+        assert len(violacoes) == 1
+        assert violacoes[0].codigo_regra == "REGRA_1_DISP"
+        assert violacoes[0].numero_subgrupo == 9
+        assert "Dispers" in violacoes[0].descricao
+
+
+class TestRegraDispersaoForaLimites:
+    def test_detecta_dispersao_acima_lsc(self):
+        from app.domain.rules.nelson_rules import RegraDispersaoForaLimites
+
+        limites = LimitesControle(
+            lc=4.9607,
+            lsc=4.9733,
+            lic=4.9480,
+            sigma_estimado=0.0094,
+            lc_dispersao=0.02195,
+            lsc_dispersao=0.0464,
+            lic_dispersao=0.0,
+        )
+        regra = RegraDispersaoForaLimites()
+        violacao = regra.avaliar(
+            historico_dispersoes=[0.020, 0.0560],
+            limites=limites,
+            numero_subgrupo=9,
+        )
+
+        assert violacao is not None
+        assert violacao.codigo_regra == "REGRA_1_DISP"
+        assert violacao.numero_subgrupo == 9
+        assert violacao.pontos_violadores == (9,)
+
+    def test_sem_violacao_quando_dispersao_dentro_dos_limites(self):
+        from app.domain.rules.nelson_rules import RegraDispersaoForaLimites
+
+        limites = LimitesControle(
+            lc=4.9607,
+            lsc=4.9733,
+            lic=4.9480,
+            sigma_estimado=0.0094,
+            lc_dispersao=0.02195,
+            lsc_dispersao=0.0464,
+            lic_dispersao=0.0,
+        )
+        regra = RegraDispersaoForaLimites()
+        violacao = regra.avaliar(
+            historico_dispersoes=[0.020, 0.035],
+            limites=limites,
+            numero_subgrupo=2,
+        )
+        assert violacao is None

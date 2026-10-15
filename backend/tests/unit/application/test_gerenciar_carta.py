@@ -174,3 +174,32 @@ async def test_atualizar_especificacoes_e_modo_limites(service, repos):
 
     with pytest.raises(ValueError):
         await service.alternar_modo_limites(carta.id, "MODO_INVALIDO")
+
+
+@pytest.mark.asyncio
+async def test_alternar_modo_limites_dispara_broadcast_websocket(repos):
+    carta_repo, proc_repo = repos
+    from unittest.mock import AsyncMock
+    mock_manager = AsyncMock()
+
+    service_com_ws = GerenciarCartaService(
+        carta_repository=carta_repo,
+        processo_repository=proc_repo,
+        connection_manager=mock_manager,
+    )
+
+    processo = Processo(nome="P_WS", codigo_linha="L_WS")
+    await proc_repo.salvar(processo)
+    carta = await service_com_ws.criar_carta(processo_id=processo.id, tamanho_subgrupo=5)
+
+    await service_com_ws.alternar_modo_limites(carta.id, "FIXO")
+
+    mock_manager.broadcast.assert_awaited_once_with(
+        carta_id=str(carta.id),
+        message={
+            "event": "MODO_LIMITES_ALTERADO",
+            "carta_id": str(carta.id),
+            "modo_limites": "FIXO",
+        },
+    )
+

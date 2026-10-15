@@ -5,6 +5,7 @@ import {
   BarChart3,
   Cpu,
   Layers,
+  Lock,
   Radio,
   RefreshCw,
   Sliders,
@@ -48,12 +49,22 @@ export function LiveStudioPage() {
     staleTime: 30000,
   })
 
-  // Carta efetiva derivada
+  // Carta efetiva derivada (prioriza cartaDetalhesStore que é atualizada em tempo real via WebSocket)
   const cartaAtivaId = cartaSelecionadaId || cartas[0]?.id || ''
-  const cartaDetalhes = useMemo(
-    () => cartas.find((c) => c.id === cartaAtivaId) || cartaDetalhesStore,
-    [cartas, cartaAtivaId, cartaDetalhesStore]
-  )
+  const cartaDetalhes = useMemo(() => {
+    if (cartaDetalhesStore && cartaDetalhesStore.id === cartaAtivaId) {
+      return cartaDetalhesStore
+    }
+    return cartas.find((c) => c.id === cartaAtivaId) || cartaDetalhesStore
+  }, [cartas, cartaAtivaId, cartaDetalhesStore])
+
+  // Sincroniza a carta no store no carregamento inicial ou quando a seleção mudar
+  useEffect(() => {
+    const carta = cartas.find((c) => c.id === cartaAtivaId)
+    if (carta && (!cartaDetalhesStore || cartaDetalhesStore.id !== cartaAtivaId)) {
+      setCartaDetalhes(carta)
+    }
+  }, [cartas, cartaAtivaId, cartaDetalhesStore, setCartaDetalhes])
 
   // 2. Carregar histórico inicial quando a carta selecionada mudar
   const { data: historicoInicial, refetch: recarregarHistorico } = useQuery({
@@ -76,12 +87,22 @@ export function LiveStudioPage() {
 
   // Estatísticas e KPIs calculados da sessão
   const metricas = useMemo(() => {
+    const tipo = cartaDetalhes?.tipo_carta || 'X_R'
+    const isP = tipo === 'P'
+    const isC = tipo === 'C'
+    const n = cartaDetalhes?.tamanho_subgrupo || (isC ? 1 : 5)
+    const rotuloDispersao = isP ? 'd̄' : isC ? 'N/A' : n === 1 ? 'MR̄' : n > 10 ? 's̄' : 'R̄'
+    const tituloMedia = isP ? 'Proporção Média p̄' : isC ? 'Total Médio c̄' : 'Média Global X̄̄'
+    const tituloDispersao = isP ? 'Defeituosos Médios d̄' : isC ? 'Dispersão Poisson' : `Dispersão Média (${rotuloDispersao})`
+
     if (subgrupos.length === 0) {
       return {
         mediaGeral: '--',
         dispersaoMedia: '--',
         sigma: '--',
-        rotuloDispersao: 'R̄',
+        rotuloDispersao,
+        tituloMedia,
+        tituloDispersao,
         foraDeControle: false,
         sparkMedia: [] as number[],
         sparkDispersao: [] as number[],
@@ -96,21 +117,28 @@ export function LiveStudioPage() {
       }
     }
 
-    const n = cartaDetalhes?.tamanho_subgrupo || 5
-    const rotuloDispersao = n === 1 ? 'MR̄' : n > 10 ? 's̄' : 'R̄'
-
     const somaMedia = subgrupos.reduce((acc, sg) => acc + sg.estatisticas.media_x, 0)
-    const mediaGeral = (somaMedia / subgrupos.length).toFixed(3)
+    const mediaGeral = isP
+      ? (somaMedia / subgrupos.length).toFixed(4)
+      : isC
+        ? (somaMedia / subgrupos.length).toFixed(2)
+        : (somaMedia / subgrupos.length).toFixed(3)
 
     const somaDisp = subgrupos.reduce((acc, sg) => {
+      if (isP) return acc + (sg.estatisticas.amplitude_r ?? 0)
+      if (isC) return acc + (sg.estatisticas.desvio_s ?? 0)
       if (n > 10) return acc + sg.estatisticas.desvio_s
       return acc + sg.estatisticas.amplitude_r
     }, 0)
-    const dispersaoMedia = (somaDisp / subgrupos.length).toFixed(3)
+    const dispersaoMedia = isC ? '-' : (somaDisp / subgrupos.length).toFixed(isP ? 1 : 3)
 
     const sigmaVal = cartaDetalhes?.limites_atuais?.sigma_estimado
-      ? cartaDetalhes.limites_atuais.sigma_estimado.toFixed(3)
-      : (parseFloat(dispersaoMedia) / (n === 1 ? 1.128 : 2.326)).toFixed(3)
+      ? cartaDetalhes.limites_atuais.sigma_estimado.toFixed(isP ? 4 : 3)
+      : isP
+        ? Math.sqrt(Math.max(0, parseFloat(mediaGeral) * (1 - parseFloat(mediaGeral))) / n).toFixed(4)
+        : isC
+          ? Math.sqrt(Math.max(0, parseFloat(mediaGeral))).toFixed(3)
+          : (parseFloat(dispersaoMedia) / (n === 1 ? 1.128 : 2.326)).toFixed(3)
 
     const foraDeControle = subgrupos.some((sg) => sg.fora_de_controle)
 
@@ -118,11 +146,23 @@ export function LiveStudioPage() {
     const recentSubgrupos = subgrupos.slice(-15)
     const sparkMedia = recentSubgrupos.map((sg) => sg.estatisticas.media_x)
     const sparkDispersao = recentSubgrupos.map((sg) =>
-      n > 10 ? sg.estatisticas.desvio_s : sg.estatisticas.amplitude_r
+      isP
+        ? sg.estatisticas.amplitude_r
+        : isC
+          ? sg.estatisticas.desvio_s
+          : n > 10
+            ? sg.estatisticas.desvio_s
+            : sg.estatisticas.amplitude_r
     )
     const d2 = n === 1 ? 1.128 : 2.326
     const sparkSigma = recentSubgrupos.map((sg) =>
-      n > 10 ? sg.estatisticas.desvio_s : sg.estatisticas.amplitude_r / d2
+      isP
+        ? Math.sqrt(Math.max(0, sg.estatisticas.media_x * (1 - sg.estatisticas.media_x)) / n)
+        : isC
+          ? Math.sqrt(Math.max(0, sg.estatisticas.media_x))
+          : n > 10
+            ? sg.estatisticas.desvio_s
+            : sg.estatisticas.amplitude_r / d2
     )
     const sparkSubgrupos = recentSubgrupos.map((_, i) => i + 1)
 
@@ -137,7 +177,7 @@ export function LiveStudioPage() {
     }
 
     const varMediaNum = calcVar(sparkMedia)
-    const varDispNum = calcVar(sparkDispersao)
+    const varDispNum = isC ? undefined : calcVar(sparkDispersao)
     const varSigmaNum = calcVar(sparkSigma)
 
     return {
@@ -145,6 +185,8 @@ export function LiveStudioPage() {
       dispersaoMedia,
       sigma: sigmaVal,
       rotuloDispersao,
+      tituloMedia,
+      tituloDispersao,
       foraDeControle,
       sparkMedia,
       sparkDispersao,
@@ -251,12 +293,25 @@ export function LiveStudioPage() {
               Amostra: n={cartaDetalhes?.tamanho_subgrupo || 5}
             </Badge>
 
-            <Badge
-              variant={cartaDetalhes?.modo_limites === 'FIXO' ? 'neutro' : 'alerta'}
-              className="text-2xs font-mono"
-            >
-              Modo: {cartaDetalhes?.modo_limites || 'DINÂMICO'}
-            </Badge>
+            {cartaDetalhes?.modo_limites === 'FIXO' ? (
+              <Badge
+                data-testid="badge-modo-fixo"
+                variant="neutro"
+                className="text-2xs font-mono bg-purple-950/80 text-purple-300 border-purple-700/60"
+              >
+                <Lock className="w-3 h-3 mr-1 text-purple-400" />
+                Modo: FIXO (Acompanhamento)
+              </Badge>
+            ) : (
+              <Badge
+                data-testid="badge-modo-dinamico"
+                variant="alerta"
+                className="text-2xs font-mono bg-blue-950/80 text-blue-300 border-blue-700/60"
+              >
+                <Activity className="w-3 h-3 mr-1 text-blue-400" />
+                Modo: DINÂMICO (Calibração)
+              </Badge>
+            )}
           </div>
         </div>
 
@@ -290,9 +345,9 @@ export function LiveStudioPage() {
       {/* Fileira de 4 Cards de KPI com Sparklines Reais e Variações Percentuais */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <CardKpi
-          titulo="Média Global X̄̄"
+          titulo={metricas.tituloMedia}
           valor={metricas.mediaGeral}
-          subtitulo={`LC: ${cartaDetalhes?.limites_atuais?.lc.toFixed(3) || metricas.mediaGeral}`}
+          subtitulo={`LC: ${cartaDetalhes?.limites_atuais?.lc.toFixed(cartaDetalhes?.tipo_carta === 'P' ? 4 : 3) || metricas.mediaGeral}`}
           status="normal"
           icone={<Activity className="w-4 h-4 text-blue-400" />}
           sparklineData={metricas.sparkMedia}
@@ -303,9 +358,9 @@ export function LiveStudioPage() {
           }
         />
         <CardKpi
-          titulo={`Dispersão Média ${metricas.rotuloDispersao}`}
+          titulo={metricas.tituloDispersao}
           valor={metricas.dispersaoMedia}
-          subtitulo="Variação interna do subgrupo"
+          subtitulo={cartaDetalhes?.tipo_carta === 'P' ? 'Total de defeituosos por subgrupo' : cartaDetalhes?.tipo_carta === 'C' ? 'Defeitos por lote constante' : 'Variação interna do subgrupo'}
           status="normal"
           icone={<BarChart3 className="w-4 h-4 text-emerald-400" />}
           sparklineData={metricas.sparkDispersao}

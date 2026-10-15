@@ -52,6 +52,10 @@ class ISubgrupoRepository(ABC):
     ) -> list[Subgrupo]:
         """Recupera os subgrupos de uma carta ordenados cronologicamente."""
 
+    @abstractmethod
+    async def atualizar_violacoes_em_lote(self, subgrupos: Sequence[Subgrupo]) -> None:
+        """Atualiza fora_de_controle e regras_violadas de múltiplos subgrupos existentes."""
+
 
 class IProcessoRepository(ABC):
     """Contrato abstrato para gestão de Processos Industriais."""

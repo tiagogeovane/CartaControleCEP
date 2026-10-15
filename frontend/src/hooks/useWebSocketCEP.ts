@@ -123,6 +123,8 @@ export function useWebSocketCEP(
             } else if (dados.event === 'NOVO_SUBGRUPO_PROCESSADO') {
               useCEPStore.getState().adicionarSubgrupo(dados)
               onNovoSubgrupo?.(dados)
+            } else if (dados.event === 'MODO_LIMITES_ALTERADO') {
+              useCEPStore.getState().setModoLimites(dados.modo_limites)
             }
           }
         } catch {

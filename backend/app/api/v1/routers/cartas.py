@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Query, status
 from app.api.deps import (
     get_analise_capacidade_service,
     get_gerenciar_carta_service,
+    get_simulacao_probabilistica_service,
 )
 from app.api.schemas.carta import (
     CapacidadeResponse,
@@ -16,8 +17,14 @@ from app.api.schemas.carta import (
     LimitesEspecificacaoSchema,
     ModoLimitesUpdate,
 )
+from app.api.schemas.simulacao import (
+    PontoDistribuicaoSchema,
+    SimulacaoBinomialRequest,
+    SimulacaoBinomialResponse,
+)
 from app.application.services.analise_capacidade import AnaliseCapacidadeService
 from app.application.services.gerenciar_carta import GerenciarCartaService
+from app.application.services.simulacao_probabilistica import SimulacaoProbabilisticaService
 from app.domain.entities.carta import CartaControle
 from app.domain.value_objects.limites import LimitesEspecificacao
 
@@ -41,6 +48,9 @@ def _formatar_carta_response(carta: CartaControle) -> CartaControleResponse:
             lsc=carta.limites_atuais.lsc,
             lic=carta.limites_atuais.lic,
             sigma_estimado=carta.limites_atuais.sigma_estimado,
+            lc_dispersao=carta.limites_atuais.lc_dispersao,
+            lsc_dispersao=carta.limites_atuais.lsc_dispersao,
+            lic_dispersao=carta.limites_atuais.lic_dispersao,
         )
 
     return CartaControleResponse(
@@ -70,7 +80,9 @@ async def cadastrar_carta(
     Caso o tipo de carta seja omitido, aplica a seleção automática da Regra [RN01].
     """
     especificacoes = None
-    if dados.especificacoes is not None:
+    if dados.especificacoes is not None and (
+        dados.especificacoes.lse is not None or dados.especificacoes.lie is not None
+    ):
         especificacoes = LimitesEspecificacao(
             lse=dados.especificacoes.lse,
             lie=dados.especificacoes.lie,
@@ -199,3 +211,54 @@ async def alternar_modo_limites(
     """Alterna o modo de atualização dos limites de controle entre DINAMICO e FIXO."""
     carta = await service.alternar_modo_limites(carta_id=carta_id, modo_limites=dados.modo_limites)
     return _formatar_carta_response(carta)
+
+
+@router.post(
+    "/{carta_id}/simulacao-binomial",
+    response_model=SimulacaoBinomialResponse,
+    summary="Simulação Probabilística Binomial de Conformidade",
+)
+async def simular_probabilidade_binomial(
+    carta_id: UUID,
+    dados: SimulacaoBinomialRequest,
+    service: Annotated[SimulacaoProbabilisticaService, Depends(get_simulacao_probabilistica_service)],
+) -> SimulacaoBinomialResponse:
+    """Calcula a probabilidade binomial de conformidade (consecutiva ou em lote)
+
+    para a carta de controle selecionada.
+    """
+    resultado = await service.executar(
+        carta_id=carta_id,
+        tipo_arranjo=dados.tipo_arranjo,
+        criterio=dados.criterio,
+        escopo=dados.escopo,
+        tamanho_lote_x=dados.tamanho_lote_x,
+        sucessos_desejados_y=dados.sucessos_desejados_y,
+        z_valor=dados.z_valor,
+    )
+
+    return SimulacaoBinomialResponse(
+        carta_id=carta_id,
+        tipo_arranjo=resultado.tipo_arranjo,
+        criterio=resultado.criterio,
+        escopo=resultado.escopo,
+        media_processo=resultado.media_processo,
+        sigma_usado=resultado.sigma_usado,
+        z_valor=resultado.z_valor,
+        faixa_inferior=resultado.faixa_inferior,
+        faixa_superior=resultado.faixa_superior,
+        probabilidade_unitaria_p=resultado.probabilidade_unitaria_p,
+        probabilidade_falha_q=resultado.probabilidade_falha_q,
+        tamanho_lote_x=resultado.tamanho_lote_x,
+        sucessos_desejados_y=resultado.sucessos_desejados_y,
+        combinacoes=resultado.combinacoes,
+        probabilidade_final=resultado.probabilidade_final,
+        distribuicao_completa=[
+            PontoDistribuicaoSchema(
+                k=ponto.k,
+                probabilidade=ponto.probabilidade,
+                destaque=ponto.destaque,
+            )
+            for ponto in resultado.distribuicao_completa
+        ],
+    )

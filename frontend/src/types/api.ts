@@ -54,7 +54,7 @@ export interface ProcessoResponse {
 // Módulo de Cartas de Controle e Limites
 // ==========================================
 
-export type TipoCarta = 'X_R' | 'X_S' | 'I_MR' | 'P' | 'NP' | 'C' | 'U'
+export type TipoCarta = 'X_R' | 'X_S' | 'I_MR' | 'P' | 'C'
 export type ModoLimites = 'DINAMICO' | 'FIXO'
 
 export interface LimitesEspecificacaoSchema {
@@ -68,7 +68,12 @@ export interface LimitesControleSchema {
   lsc: number
   lic: number
   sigma_estimado: number
+  lc_dispersao?: number | null
+  lsc_dispersao?: number | null
+  lic_dispersao?: number | null
 }
+
+export type LimitesControle = LimitesControleSchema
 
 export interface CartaControleCreate {
   processo_id: string
@@ -130,6 +135,8 @@ export interface AmostraIngestaoRequest {
   valores: number[]
   numero_subgrupo?: number | null
   timestamp?: string | null
+  goal?: string | null
+  modo_limites?: ModoLimites | null
 }
 
 export interface ViolacaoRegraResponse {
@@ -157,12 +164,58 @@ export interface SubgrupoResponse {
   violacoes: ViolacaoRegraResponse[]
 }
 
+export type Subgrupo = SubgrupoResponse
+
 export interface ImportacaoLoteRequest {
   amostras: number[][]
+  goal?: string | null
+  modo_limites?: ModoLimites | null
 }
 
 export interface ImportacaoLoteResponse {
   carta_id: string
   total_importados: number
   subgrupos: SubgrupoResponse[]
+}
+
+// ==========================================
+// Módulo de Simulação Probabilística Binomial
+// ==========================================
+
+export type TipoArranjo = 'CONSECUTIVO' | 'EXATAMENTE' | 'PELO_MENOS' | 'NO_MAXIMO'
+export type CriterioConformidade = 'Z_SIGMAS' | 'LIMITES_CONTROLE' | 'LIMITES_ESPECIFICACAO'
+export type EscopoAmostral = 'INDIVIDUAL' | 'MEDIA_SUBGRUPO'
+
+export interface SimulacaoBinomialRequest {
+  tipo_arranjo: TipoArranjo
+  criterio: CriterioConformidade
+  escopo: EscopoAmostral
+  z_valor?: number | null
+  tamanho_lote_x: number
+  sucessos_desejados_y: number
+}
+
+export interface PontoDistribuicaoSchema {
+  k: number
+  probabilidade: number
+  destaque: boolean
+}
+
+export interface SimulacaoBinomialResponse {
+  carta_id: string
+  tipo_arranjo: TipoArranjo
+  criterio: CriterioConformidade
+  escopo: EscopoAmostral
+  media_processo: number
+  sigma_usado: number
+  z_valor: number | null
+  faixa_inferior: number | null
+  faixa_superior: number | null
+  probabilidade_unitaria_p: number
+  probabilidade_falha_q: number
+  tamanho_lote_x: number
+  sucessos_desejados_y: number
+  combinacoes: number
+  probabilidade_final: number
+  distribuicao_completa: PontoDistribuicaoSchema[]
 }

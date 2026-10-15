@@ -151,6 +151,7 @@ describe('Fase 1 - Store Zustand CEP (Buffer Deslizante e Estado Reativo)', () =
         lc: 25.05,
         lsc: 25.85,
         lic: 24.25,
+        sigma_estimado: 0.32,
       },
       status_controle: {
         fora_de_controle: false,
@@ -163,6 +164,44 @@ describe('Fase 1 - Store Zustand CEP (Buffer Deslizante e Estado Reativo)', () =
     const updatedCarta = useCEPStore.getState().cartaDetalhes
     expect(updatedCarta?.limites_atuais?.lc).toBe(25.05)
     expect(updatedCarta?.limites_atuais?.lsc).toBe(25.85)
+    expect(updatedCarta?.limites_atuais?.sigma_estimado).toBe(0.32)
     expect(updatedCarta?.total_subgrupos).toBe(11)
+  })
+
+  it('deve inicializar cartaDetalhes se for nula ao receber evento com limites', () => {
+    useCEPStore.setState({ cartaDetalhes: null })
+
+    const wsEvent: NovoSubgrupoProcessadoEvent = {
+      event: 'NOVO_SUBGRUPO_PROCESSADO',
+      carta_id: 'carta-999',
+      timestamp: '2026-09-03T15:05:00Z',
+      numero_subgrupo: 20,
+      estatisticas: {
+        media_x: 4.0,
+        amplitude_r: 2.0,
+        desvio_s: 1.0,
+        amostras_brutas: [4.0],
+      },
+      limites: {
+        lc: 4.0,
+        lsc: 10.0,
+        lic: 0.0,
+        sigma_estimado: 2.0,
+      },
+      status_controle: {
+        fora_de_controle: false,
+        regras_violadas: [],
+      },
+    }
+
+    useCEPStore.getState().adicionarSubgrupo(wsEvent)
+
+    const carta = useCEPStore.getState().cartaDetalhes
+    expect(carta).not.toBeNull()
+    expect(carta?.id).toBe('carta-999')
+    expect(carta?.limites_atuais?.lc).toBe(4.0)
+    expect(carta?.limites_atuais?.lsc).toBe(10.0)
+    expect(carta?.limites_atuais?.sigma_estimado).toBe(2.0)
+    expect(carta?.total_subgrupos).toBe(20)
   })
 })

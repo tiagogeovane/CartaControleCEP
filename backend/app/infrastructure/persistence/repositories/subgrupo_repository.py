@@ -68,3 +68,21 @@ class MySQLSubgrupoRepository(ISubgrupoRepository):
             models = list(result.scalars().all())
 
         return [subgrupo_model_to_entity(m) for m in models]
+
+    async def atualizar_violacoes_em_lote(self, subgrupos: Sequence[Subgrupo]) -> None:
+        """Atualiza fora_de_controle e regras_violadas de múltiplos subgrupos existentes."""
+        if not subgrupos:
+            return
+
+        ids = [str(s.id) for s in subgrupos]
+        stmt = select(SubgrupoModel).where(SubgrupoModel.id.in_(ids))
+        result = await self._session.execute(stmt)
+        models_by_id = {m.id: m for m in result.scalars().all()}
+
+        for s in subgrupos:
+            model = models_by_id.get(str(s.id))
+            if model:
+                model.fora_de_controle = s.fora_de_controle
+                model.regras_violadas = [v.to_dict() for v in s.violacoes]
+
+        await self._session.flush()

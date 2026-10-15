@@ -8,6 +8,7 @@ from app.domain.interfaces.repositories import (
 )
 from app.domain.strategies.factory import CartaStrategyFactory
 from app.domain.value_objects.limites import LimitesEspecificacao
+from app.infrastructure.real_time.connection_manager import ConnectionManager
 
 
 class GerenciarCartaService:
@@ -17,9 +18,11 @@ class GerenciarCartaService:
         self,
         carta_repository: ICartaControleRepository,
         processo_repository: IProcessoRepository,
+        connection_manager: ConnectionManager | None = None,
     ) -> None:
         self._carta_repo = carta_repository
         self._processo_repo = processo_repository
+        self._connection_manager = connection_manager
 
     async def criar_carta(
         self,
@@ -99,4 +102,16 @@ class GerenciarCartaService:
 
         carta = await self.obter_carta(carta_id)
         carta.modo_limites = modo
-        return await self._carta_repo.salvar(carta)
+        carta_salva = await self._carta_repo.salvar(carta)
+
+        if self._connection_manager is not None:
+            await self._connection_manager.broadcast(
+                carta_id=str(carta.id),
+                message={
+                    "event": "MODO_LIMITES_ALTERADO",
+                    "carta_id": str(carta.id),
+                    "modo_limites": modo,
+                },
+            )
+
+        return carta_salva

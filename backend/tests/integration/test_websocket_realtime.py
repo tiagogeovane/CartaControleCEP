@@ -54,6 +54,9 @@ class InMemorySubgrupoRepository(ISubgrupoRepository):
     async def listar_por_carta(self, carta_id, limite=None):
         return [s for s in self.subgrupos if s.carta_id == carta_id]
 
+    async def atualizar_violacoes_em_lote(self, subgrupos):
+        pass
+
 
 def test_health_check():
     """Valida o endpoint base de integridade do backend."""

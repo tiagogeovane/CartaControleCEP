@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type {
   CartaControleResponse,
+  LimitesControleSchema,
   SubgrupoResponse,
   ViolacaoRegraResponse,
 } from '@/types/api'
@@ -37,6 +38,7 @@ export interface CEPState {
   setStatusConexao: (status: WebSocketConnectionStatus) => void
   setLimiteBuffer: (limite: number) => void
   limparBuffer: () => void
+  setModoLimites: (modo: 'DINAMICO' | 'FIXO') => void
   removerAlarme: (id: string) => void
   limparAlarmes: () => void
 }
@@ -142,16 +144,52 @@ export const useCEPStore = create<CEPState>((set, get) => ({
 
     // Atualizar limites da carta caso venham no evento do WebSocket
     let cartaAtualizada = state.cartaDetalhes
-    if ('limites' in item && item.limites && cartaAtualizada) {
-      cartaAtualizada = {
-        ...cartaAtualizada,
-        limites_atuais: {
-          lc: item.limites.lc,
-          lsc: item.limites.lsc,
-          lic: item.limites.lic,
-          sigma_estimado: cartaAtualizada.limites_atuais?.sigma_estimado ?? 0,
-        },
-        total_subgrupos: cartaAtualizada.total_subgrupos + 1,
+    if ('limites' in item && item.limites) {
+      const novosLimites: LimitesControleSchema = {
+        lc: item.limites.lc,
+        lsc: item.limites.lsc,
+        lic: item.limites.lic,
+        sigma_estimado:
+          item.limites.sigma_estimado ??
+          cartaAtualizada?.limites_atuais?.sigma_estimado ??
+          0,
+        lc_dispersao:
+          item.limites.lc_dispersao ??
+          cartaAtualizada?.limites_atuais?.lc_dispersao ??
+          null,
+        lsc_dispersao:
+          item.limites.lsc_dispersao ??
+          cartaAtualizada?.limites_atuais?.lsc_dispersao ??
+          null,
+        lic_dispersao:
+          item.limites.lic_dispersao ??
+          cartaAtualizada?.limites_atuais?.lic_dispersao ??
+          null,
+      }
+
+      const modoLimitesItem =
+        'modo_limites' in item && item.modo_limites
+          ? item.modo_limites
+          : cartaAtualizada?.modo_limites || 'DINAMICO'
+
+      if (cartaAtualizada) {
+        cartaAtualizada = {
+          ...cartaAtualizada,
+          limites_atuais: novosLimites,
+          modo_limites: modoLimitesItem,
+          total_subgrupos: cartaAtualizada.total_subgrupos + 1,
+        }
+      } else {
+        cartaAtualizada = {
+          id: item.carta_id,
+          processo_id: '',
+          tipo_carta: 'X_R',
+          tamanho_subgrupo: item.estatisticas?.amostras_brutas?.length || 5,
+          especificacoes: null,
+          limites_atuais: novosLimites,
+          modo_limites: modoLimitesItem,
+          total_subgrupos: item.numero_subgrupo || 1,
+        }
       }
     }
 
@@ -193,6 +231,18 @@ export const useCEPStore = create<CEPState>((set, get) => ({
       subgruposHistorico: [],
       ultimoSubgrupo: null,
     })
+  },
+
+  setModoLimites: (modo: 'DINAMICO' | 'FIXO') => {
+    const state = get()
+    if (state.cartaDetalhes) {
+      set({
+        cartaDetalhes: {
+          ...state.cartaDetalhes,
+          modo_limites: modo,
+        },
+      })
+    }
   },
 
   removerAlarme: (id: string) => {

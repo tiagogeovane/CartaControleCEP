@@ -5,6 +5,14 @@ from app.domain.value_objects.limites import LimitesControle
 from app.domain.value_objects.violacao import ViolacaoRegra
 
 
+def obter_sigma_zona(limites: LimitesControle) -> float:
+    """Retorna a largura de 1 zona sigma no gráfico principal."""
+    if limites.lsc_dispersao == 0.0 and limites.lic_dispersao == 0.0 and limites.sigma_estimado > 0:
+        # Cartas de atributos (P e C): sigma_estimado já é o próprio sigma do gráfico
+        return limites.sigma_estimado
+    return (limites.lsc - limites.lc) / 3.0 if (limites.lsc - limites.lc) > 0 else 0.0
+
+
 class Regra1TresSigma(IRegraNelson):
     """Regra 1: 1 ponto fora dos limites de controle de 3 sigma (além de LSC ou LIC)."""
 
@@ -31,7 +39,8 @@ class Regra1TresSigma(IRegraNelson):
         ultimo_ponto = historico_medias[-1]
         idx_atual = len(historico_medias)
 
-        if ultimo_ponto > limites.lsc or ultimo_ponto < limites.lic:
+        tol = 1e-9
+        if (ultimo_ponto - limites.lsc) > tol or (limites.lic - ultimo_ponto) > tol:
             return ViolacaoRegra(
                 codigo_regra=self.codigo,
                 descricao=self.descricao,
@@ -189,7 +198,7 @@ class Regra5DoisDeTresZonaA(IRegraNelson):
 
         janela = historico_medias[-self.pontos_minimos :]
         lc = limites.lc
-        sigma_m = limites.sigma_media
+        sigma_m = obter_sigma_zona(limites)
 
         dois_sigma_sup = lc + (2.0 * sigma_m)
         dois_sigma_inf = lc - (2.0 * sigma_m)
@@ -234,7 +243,7 @@ class Regra6QuatroDeCincoZonaB(IRegraNelson):
 
         janela = historico_medias[-self.pontos_minimos :]
         lc = limites.lc
-        sigma_m = limites.sigma_media
+        sigma_m = obter_sigma_zona(limites)
 
         um_sigma_sup = lc + (1.0 * sigma_m)
         um_sigma_inf = lc - (1.0 * sigma_m)
@@ -279,7 +288,7 @@ class Regra7QuinzeZonaC(IRegraNelson):
 
         janela = historico_medias[-self.pontos_minimos :]
         lc = limites.lc
-        sigma_m = limites.sigma_media
+        sigma_m = obter_sigma_zona(limites)
 
         um_sigma_sup = lc + (1.0 * sigma_m)
         um_sigma_inf = lc - (1.0 * sigma_m)
@@ -323,7 +332,7 @@ class Regra8OitoForaZonaC(IRegraNelson):
 
         janela = historico_medias[-self.pontos_minimos :]
         lc = limites.lc
-        sigma_m = limites.sigma_media
+        sigma_m = obter_sigma_zona(limites)
 
         um_sigma_sup = lc + (1.0 * sigma_m)
         um_sigma_inf = lc - (1.0 * sigma_m)
@@ -340,3 +349,48 @@ class Regra8OitoForaZonaC(IRegraNelson):
                 pontos_violadores=pontos,
             )
         return None
+
+
+class RegraDispersaoForaLimites:
+    """Regra 1 aplicada à carta secundária de dispersão (R, s ou MR).
+
+    Sinaliza o último ponto de dispersão acima do LSC de dispersão ou abaixo do
+    LIC de dispersão (apenas quando LIC > 0; para n <= 6 o fator D3 é zero e o
+    limite inferior não tem significado estatístico).
+
+    Não implementa `IRegraNelson` porque opera sobre a série de dispersões, e
+    não sobre a série de médias.
+    """
+
+    codigo: str = "REGRA_1_DISP"
+    descricao: str = "Dispersão (R/s) fora dos limites de controle."
+
+    def avaliar(
+        self,
+        historico_dispersoes: Sequence[float],
+        limites: LimitesControle,
+        numero_subgrupo: int | None = None,
+    ) -> ViolacaoRegra | None:
+        lsc_disp = limites.lsc_dispersao
+        lic_disp = limites.lic_dispersao
+        if not historico_dispersoes or lsc_disp is None or lic_disp is None:
+            return None
+
+        if lsc_disp <= 0.0:
+            return None
+
+        ultimo_ponto = historico_dispersoes[-1]
+
+        tol = 1e-9
+        acima = (ultimo_ponto - lsc_disp) > tol
+        abaixo = lic_disp > 0 and (lic_disp - ultimo_ponto) > tol
+        if not (acima or abaixo):
+            return None
+
+        idx = numero_subgrupo if numero_subgrupo is not None else len(historico_dispersoes)
+        return ViolacaoRegra(
+            codigo_regra=self.codigo,
+            descricao=self.descricao,
+            numero_subgrupo=idx,
+            pontos_violadores=(idx,),
+        )

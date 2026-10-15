@@ -15,6 +15,7 @@ class ICartaControleStrategy(ABC):
     rotulo_posicao: str = "Média"
     rotulo_dispersao: str = "Dispersão"
     sigla_dispersao: str = "D"
+    possui_grafico_dispersao: bool = True
 
     @abstractmethod
     def calcular_estatisticas(self, amostras: Sequence[float]) -> EstatisticasSubgrupo:

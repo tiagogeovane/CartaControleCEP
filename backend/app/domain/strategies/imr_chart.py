@@ -73,12 +73,16 @@ class CartaIMRStrategy(ICartaControleStrategy):
         lsc = x_barra + (fator_mr * mr_barra)
         lic = x_barra - (fator_mr * mr_barra)
         sigma = mr_barra / self.D2_N2
+        lic_mr, lc_mr, lsc_mr = self.calcular_limites_mr(mr_barra)
 
         return LimitesControle(
             lc=x_barra,
             lsc=lsc,
             lic=lic,
             sigma_estimado=sigma,
+            lc_dispersao=lc_mr,
+            lsc_dispersao=lsc_mr,
+            lic_dispersao=lic_mr,
         )
 
     def calcular_limites_mr(self, mr_barra: float) -> tuple[float, float, float]:

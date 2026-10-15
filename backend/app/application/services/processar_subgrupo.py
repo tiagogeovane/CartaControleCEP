@@ -56,18 +56,21 @@ class ProcessamentoSubgrupoService:
         amostras_valores: Sequence[float],
         timestamp: datetime | None = None,
         numero_subgrupo: int | None = None,
+        goal: str | None = None,
+        modo_limites: str | None = None,
     ) -> Subgrupo:
         """Executa o pipeline completo de ingestão e processamento estatístico de um subgrupo.
 
         Fluxo:
         1. Carrega e valida a existência da CartaControle.
-        2. Valida o tamanho nominal do subgrupo [RN02].
-        3. Resolve a estratégia de controle estatístico (Strategy Pattern / Factory).
-        4. Calcula estatísticas pontuais (média, amplitude, desvio padrão).
-        5. Recalcula limites de controle globais se configurado em modo DINÂMICO.
-        6. Avalia violações das 8 Regras de Nelson sobre a série temporal.
-        7. Constrói e persiste a entidade Subgrupo com garantia transacional ACID.
-        8. Notifica reativamente os ouvintes registrados via Observer Pattern.
+        2. Gerencia a transição de modo de limites (FIXO para acompanhamento, DINÂMICO para calibração).
+        3. Valida o tamanho nominal do subgrupo [RN02].
+        4. Resolve a estratégia de controle estatístico (Strategy Pattern / Factory).
+        5. Calcula estatísticas pontuais (média, amplitude, desvio padrão).
+        6. Recalcula limites de controle globais se configurado em modo DINÂMICO.
+        7. Avalia violações das 8 Regras de Nelson sobre a série temporal.
+        8. Constrói e persiste a entidade Subgrupo com garantia transacional ACID.
+        9. Notifica reativamente os ouvintes registrados via Observer Pattern.
         """
         c_id = UUID(str(carta_id)) if not isinstance(carta_id, UUID) else carta_id
 
@@ -75,6 +78,20 @@ class ProcessamentoSubgrupoService:
         carta = await self._carta_repo.obter_por_id(c_id)
         if carta is None:
             raise CartaNaoEncontradaError(carta_id=str(c_id))
+
+        # Transição de Modo de Limites baseada no Goal ou modo explícito
+        modo_alterado = False
+        goal_lower = (goal or "").strip().lower()
+        modo_desejado = (modo_limites or "").strip().upper()
+
+        if "acompanh" in goal_lower or "monitor" in goal_lower or modo_desejado == "FIXO":
+            if carta.modo_limites != "FIXO":
+                carta.modo_limites = "FIXO"
+                modo_alterado = True
+        elif "calibr" in goal_lower or modo_desejado == "DINAMICO":
+            if carta.modo_limites != "DINAMICO":
+                carta.modo_limites = "DINAMICO"
+                modo_alterado = True
 
         # 2. Validação do tamanho amostral [RN02]
         try:
@@ -88,38 +105,7 @@ class ProcessamentoSubgrupoService:
         # 4. Cálculo de estatísticas pontuais
         estatisticas = strategy.calcular_estatisticas(amostras_valores)
 
-        # 5. Tratamento de limites dinâmicos e histórico
-        medias_atualizadas = carta.obter_historico_medias() + [estatisticas.media_x]
-        dispersoes_atualizadas = self._construir_historico_dispersoes(
-            carta=carta,
-            strategy=strategy,
-            estatisticas=estatisticas,
-            medias_atualizadas=medias_atualizadas,
-        )
-
-        limites_recalculados = False
-        if carta.modo_limites == "DINAMICO" or carta.limites_atuais is None:
-            try:
-                novos_limites = strategy.calcular_limites(
-                    historico_medias=medias_atualizadas,
-                    historico_dispersoes=dispersoes_atualizadas,
-                    n=carta.tamanho_subgrupo,
-                )
-                carta.atualizar_limites(novos_limites)
-                limites_recalculados = True
-            except ValueError:
-                # Ocorre, por exemplo, no 1º ponto de carta I-MR onde MR requer ao menos 2 pontos
-                pass
-
-        # 6. Avaliação das Regras de Nelson
-        violacoes = []
-        if carta.limites_atuais is not None:
-            violacoes = self._detector.avaliar(
-                historico_medias=medias_atualizadas,
-                limites=carta.limites_atuais,
-            )
-
-        # 7. Construção da Entidade Subgrupo
+        # 5. Validação e determinação do número sequencial do subgrupo
         if numero_subgrupo is not None:
             if any(s.numero_subgrupo == numero_subgrupo for s in carta.subgrupos):
                 raise AmostraInvalidaError(
@@ -130,24 +116,62 @@ class ProcessamentoSubgrupoService:
         num_subgrupo = (
             numero_subgrupo if numero_subgrupo is not None else carta.total_subgrupos + 1
         )
+
         subgrupo = Subgrupo(
             carta_id=carta.id,
             numero_subgrupo=num_subgrupo,
             valores_brutos=list(amostras_valores),
             estatisticas=estatisticas,
             timestamp=timestamp or datetime.now(timezone.utc),
-            fora_de_controle=len(violacoes) > 0,
-            violacoes=violacoes,
+            fora_de_controle=False,
+            violacoes=[],
         )
 
-        # 8. Persistência relacional
-        await self._subgrupo_repo.salvar(subgrupo)
+        subgrupos_anteriores = list(carta.subgrupos)
         carta.adicionar_subgrupo(subgrupo)
 
-        if limites_recalculados:
+        # 6. Atualização de limites e avaliação das Regras de Nelson
+        limites_recalculados = False
+        if carta.modo_limites == "DINAMICO" or carta.limites_atuais is None:
+            medias_atualizadas = carta.obter_historico_medias()
+            dispersoes_atualizadas = carta.obter_historico_dispersoes()
+            try:
+                novos_limites = strategy.calcular_limites(
+                    historico_medias=medias_atualizadas,
+                    historico_dispersoes=dispersoes_atualizadas,
+                    n=carta.tamanho_subgrupo,
+                )
+                carta.atualizar_limites(novos_limites)
+                limites_recalculados = True
+            except ValueError:
+                # Ocorre quando histórico insuficiente (ex: 1º ponto em I-MR)
+                pass
+
+        if (carta.modo_limites == "DINAMICO" or limites_recalculados) and carta.limites_atuais is not None:
+            # Fase 1 / Modo Dinâmico: Reavaliação retroativa de todos os subgrupos
+            carta.reavaliar_historico_completo(self._detector)
+        elif carta.limites_atuais is not None:
+            # Modo FIXO: Avalia apenas o novo subgrupo incrementalmente
+            medias_atualizadas = carta.obter_historico_medias()
+            dispersoes_atualizadas = carta.obter_historico_dispersoes()
+            violacoes = self._detector.avaliar(
+                historico_medias=medias_atualizadas,
+                limites=carta.limites_atuais,
+                historico_dispersoes=dispersoes_atualizadas,
+                numero_subgrupo=num_subgrupo,
+            )
+            subgrupo.definir_violacoes(violacoes)
+
+        # 7. Persistência
+        if (carta.modo_limites == "DINAMICO" or limites_recalculados) and subgrupos_anteriores:
+            await self._subgrupo_repo.atualizar_violacoes_em_lote(subgrupos_anteriores)
+
+        await self._subgrupo_repo.salvar(subgrupo)
+
+        if limites_recalculados or modo_alterado:
             await self._carta_repo.salvar(carta)
 
-        # 9. Disparo reativo para os Observers registrados (WebSockets)
+        # 8. Notificação reativa via Observer
         await self._notificar_observers(carta, subgrupo)
 
         return subgrupo
@@ -156,6 +180,8 @@ class ProcessamentoSubgrupoService:
         self,
         carta_id: UUID | str,
         lote_amostras: Sequence[Sequence[float]],
+        goal: str | None = None,
+        modo_limites: str | None = None,
     ) -> list[Subgrupo]:
         """Processa uma série de subgrupos em lote (ex: carga histórica via CSV/JSON [RF08])."""
         c_id = UUID(str(carta_id)) if not isinstance(carta_id, UUID) else carta_id
@@ -163,8 +189,23 @@ class ProcessamentoSubgrupoService:
         if carta is None:
             raise CartaNaoEncontradaError(carta_id=str(c_id))
 
+        # Transição de Modo de Limites baseada no Goal ou modo explícito
+        modo_alterado = False
+        goal_lower = (goal or "").strip().lower()
+        modo_desejado = (modo_limites or "").strip().upper()
+
+        if "acompanh" in goal_lower or "monitor" in goal_lower or modo_desejado == "FIXO":
+            if carta.modo_limites != "FIXO":
+                carta.modo_limites = "FIXO"
+                modo_alterado = True
+        elif "calibr" in goal_lower or modo_desejado == "DINAMICO":
+            if carta.modo_limites != "DINAMICO":
+                carta.modo_limites = "DINAMICO"
+                modo_alterado = True
+
         strategy = CartaStrategyFactory.fabricar(carta.tipo_carta, carta.tamanho_subgrupo)
-        subgrupos_criados: list[Subgrupo] = []
+        subgrupos_anteriores = list(carta.subgrupos)
+        novos_subgrupos: list[Subgrupo] = []
 
         for amostra in lote_amostras:
             try:
@@ -173,53 +214,67 @@ class ProcessamentoSubgrupoService:
                 raise AmostraInvalidaError(str(e)) from e
 
             estatisticas = strategy.calcular_estatisticas(amostra)
-            medias_atualizadas = carta.obter_historico_medias() + [estatisticas.media_x]
-            dispersoes_atualizadas = self._construir_historico_dispersoes(
-                carta=carta,
-                strategy=strategy,
-                estatisticas=estatisticas,
-                medias_atualizadas=medias_atualizadas,
-            )
-
-            if carta.modo_limites == "DINAMICO" or carta.limites_atuais is None:
-                try:
-                    novos_limites = strategy.calcular_limites(
-                        historico_medias=medias_atualizadas,
-                        historico_dispersoes=dispersoes_atualizadas,
-                        n=carta.tamanho_subgrupo,
-                    )
-                    carta.atualizar_limites(novos_limites)
-                except ValueError:
-                    pass
-
-            violacoes = []
-            if carta.limites_atuais is not None:
-                violacoes = self._detector.avaliar(
-                    historico_medias=medias_atualizadas,
-                    limites=carta.limites_atuais,
-                )
-
+            num_subgrupo = carta.total_subgrupos + 1
             subgrupo = Subgrupo(
                 carta_id=carta.id,
-                numero_subgrupo=carta.total_subgrupos + 1,
+                numero_subgrupo=num_subgrupo,
                 valores_brutos=list(amostra),
                 estatisticas=estatisticas,
                 timestamp=datetime.now(timezone.utc),
-                fora_de_controle=len(violacoes) > 0,
-                violacoes=violacoes,
+                fora_de_controle=False,
+                violacoes=[],
             )
             carta.adicionar_subgrupo(subgrupo)
-            subgrupos_criados.append(subgrupo)
+            novos_subgrupos.append(subgrupo)
 
-        # Salva subgrupos em transação única em lote
-        await self._subgrupo_repo.salvar_em_lote(subgrupos_criados)
-        await self._carta_repo.salvar(carta)
+        limites_recalculados = False
+        if carta.modo_limites == "DINAMICO" or carta.limites_atuais is None:
+            medias_atualizadas = carta.obter_historico_medias()
+            dispersoes_atualizadas = carta.obter_historico_dispersoes()
+            try:
+                novos_limites = strategy.calcular_limites(
+                    historico_medias=medias_atualizadas,
+                    historico_dispersoes=dispersoes_atualizadas,
+                    n=carta.tamanho_subgrupo,
+                )
+                carta.atualizar_limites(novos_limites)
+                limites_recalculados = True
+            except ValueError:
+                pass
+
+        if (carta.modo_limites == "DINAMICO" or limites_recalculados) and carta.limites_atuais is not None:
+            carta.reavaliar_historico_completo(self._detector)
+        elif carta.limites_atuais is not None:
+            # Modo FIXO: avalia cada novo subgrupo incrementalmente
+            medias_todas = carta.obter_historico_medias()
+            dispersoes_todas = carta.obter_historico_dispersoes()
+            qtd_anteriores = len(subgrupos_anteriores)
+            for idx_novo, sub in enumerate(novos_subgrupos):
+                idx_total = qtd_anteriores + idx_novo
+                medias_ate_ponto = medias_todas[: idx_total + 1]
+                dispersoes_ate_ponto = dispersoes_todas[: idx_total + 1]
+                violacoes = self._detector.avaliar(
+                    historico_medias=medias_ate_ponto,
+                    limites=carta.limites_atuais,
+                    historico_dispersoes=dispersoes_ate_ponto,
+                    numero_subgrupo=sub.numero_subgrupo,
+                )
+                sub.definir_violacoes(violacoes)
+
+        # Persistência atômica
+        if (carta.modo_limites == "DINAMICO" or limites_recalculados) and subgrupos_anteriores:
+            await self._subgrupo_repo.atualizar_violacoes_em_lote(subgrupos_anteriores)
+
+        await self._subgrupo_repo.salvar_em_lote(novos_subgrupos)
+
+        if limites_recalculados or modo_alterado:
+            await self._carta_repo.salvar(carta)
 
         # Notifica ouvintes com o estado final
-        if subgrupos_criados:
-            await self._notificar_observers(carta, subgrupos_criados[-1])
+        if novos_subgrupos:
+            await self._notificar_observers(carta, novos_subgrupos[-1])
 
-        return subgrupos_criados
+        return novos_subgrupos
 
     def _construir_historico_dispersoes(
         self,

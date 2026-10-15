@@ -26,6 +26,7 @@ class SubgrupoProcessadoEvent:
     fora_de_controle: bool = False
     violacoes: list[ViolacaoRegra] = field(default_factory=list)
     capacidade: IndicesCapacidade | None = None
+    modo_limites: str = "DINAMICO"
     event: str = "NOVO_SUBGRUPO_PROCESSADO"
 
     @classmethod
@@ -46,6 +47,7 @@ class SubgrupoProcessadoEvent:
             fora_de_controle=subgrupo.fora_de_controle,
             violacoes=list(subgrupo.violacoes),
             capacidade=capacidade,
+            modo_limites=carta.modo_limites,
         )
 
     def to_dict(self) -> dict:
@@ -56,6 +58,10 @@ class SubgrupoProcessadoEvent:
                 "lc": round(self.limites.lc, 4),
                 "lsc": round(self.limites.lsc, 4),
                 "lic": round(self.limites.lic, 4),
+                "sigma_estimado": round(self.limites.sigma_estimado, 4),
+                "lc_dispersao": round(self.limites.lc_dispersao, 4) if self.limites.lc_dispersao is not None else None,
+                "lsc_dispersao": round(self.limites.lsc_dispersao, 4) if self.limites.lsc_dispersao is not None else None,
+                "lic_dispersao": round(self.limites.lic_dispersao, 4) if self.limites.lic_dispersao is not None else None,
             }
 
         capacidade_dict = None
@@ -70,6 +76,7 @@ class SubgrupoProcessadoEvent:
             "carta_id": str(self.carta_id),
             "timestamp": self.timestamp.isoformat(),
             "numero_subgrupo": self.numero_subgrupo,
+            "modo_limites": self.modo_limites,
             "estatisticas": {
                 "media_x": round(self.estatisticas.media_x, 4),
                 "amplitude_r": round(self.estatisticas.amplitude_r, 4),

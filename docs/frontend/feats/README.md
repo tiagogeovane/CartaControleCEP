@@ -29,6 +29,8 @@ O objetivo deste diretório é manter a rastreabilidade técnica do projeto, ser
 | **FEAT-06** | Autenticação, Controle de Acesso e Experiência do Usuário (RBAC) | Fase 6 | ✅ Concluído | [06-autenticacao-rbac-experiencia-usuario.md](./06-autenticacao-rbac-experiencia-usuario.md) |
 | **FEAT-07** | Performance, Testes Automatizados e Containerização | Fase 7 | ✅ Concluído | [07-performance-testes-containerizacao.md](./07-performance-testes-containerizacao.md) |
 | **FEAT-08** | Orquestração Full-Stack e Experiência do Desenvolvedor (DX) | Fase 8 | ✅ Concluído | [08-orquestracao-fullstack-dx.md](./08-orquestracao-fullstack-dx.md) |
+| **FEAT-09** | Cartas de Controle por Atributos (Gráficos P e C) | Atributos CEP | ✅ Concluído | [cartas_atributos_p_c.md](./cartas_atributos_p_c.md) |
+
 
 
 

@@ -169,8 +169,8 @@ export function TabelaSubgrupos({
                     <td className="py-2.5 px-3 text-2xs text-slate-400">
                       {dataHora}
                     </td>
-                    <td className="py-2.5 px-3 text-2xs text-slate-300 max-w-[200px] truncate" title={sg.valores_brutos.join(', ')}>
-                      [{sg.valores_brutos.map((v) => v.toFixed(2)).join(', ')}]
+                    <td className="py-2.5 px-3 text-2xs text-slate-300 max-w-[200px] truncate" title={sg.valores_brutos.map((v) => Number(v.toFixed(4)).toFixed(3)).join(', ')}>
+                      [{sg.valores_brutos.map((v) => Number(v.toFixed(4)).toFixed(3)).join(', ')}]
                     </td>
                     <td className="py-2.5 px-3 font-bold text-blue-400">
                       {sg.estatisticas.media_x.toFixed(3)}
@@ -228,7 +228,7 @@ export function TabelaSubgrupos({
 
       {/* Controles de Paginação */}
       {totalPaginas > 1 && (
-        <div className="flex items-center justify-between pt-3 mt-3 border-t border-slate-800 text-xs text-slate-400">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-3 mt-3 border-t border-slate-800 text-xs text-slate-400">
           <div className="flex items-center gap-2">
             <span>Itens por página:</span>
             <select
@@ -243,7 +243,11 @@ export function TabelaSubgrupos({
               <option value={15}>15</option>
               <option value={25}>25</option>
               <option value={50}>50</option>
+              <option value={100}>100</option>
             </select>
+            <span className="text-slate-500 font-mono text-2xs ml-2">
+              (Exibindo {indiceInicio + 1}–{Math.min(indiceInicio + itensPorPagina, subgruposFiltrados.length)} de {subgruposFiltrados.length})
+            </span>
           </div>
 
           <div className="flex items-center gap-2">

@@ -265,3 +265,52 @@ def test_obter_ou_criar_carta_sem_flag_nao_alterna_modo():
         res_id = sim.obter_ou_criar_carta()
         assert res_id == carta_id
         patch_spy.assert_not_called()
+
+
+def test_obter_ou_criar_carta_fallback_para_carta_existente_ao_receber_acompanhamento_com_id_404():
+    id_404 = str(uuid4())
+    carta_existente_id = str(uuid4())
+
+    sim = SimuladorJsonCEP(
+        base_url="http://test",
+        subgrupos=[{"valores": [1.0, 2.0, 3.0, 4.0, 5.0]}],
+        metadados={"id": id_404, "goal": "Acompanhamento"},
+        alternar_modo_limites=True,
+    )
+
+    def mock_get_router(url, **kwargs):
+        resp = MagicMock()
+        if f"/api/v1/cartas/{id_404}" in url:
+            resp.status_code = 404
+            return resp
+        if url == "/api/v1/cartas":
+            resp.status_code = 200
+            resp.json.return_value = [
+                {
+                    "id": carta_existente_id,
+                    "processo_id": str(uuid4()),
+                    "tamanho_subgrupo": 5,
+                    "total_subgrupos": 20,
+                    "modo_limites": "DINAMICO",
+                    "criado_em": "2026-10-15T12:00:00",
+                }
+            ]
+            return resp
+        resp.status_code = 404
+        return resp
+
+    mock_patch = MagicMock()
+    mock_patch.status_code = 200
+    mock_patch.json.return_value = {"id": carta_existente_id, "modo_limites": "FIXO"}
+
+    with patch.object(sim.client, "get", side_effect=mock_get_router), \
+         patch.object(sim.client, "patch", return_value=mock_patch) as patch_spy:
+        res_id = sim.obter_ou_criar_carta()
+        assert res_id == carta_existente_id
+        assert sim.modo_limites == "FIXO"
+        assert sim.total_existentes == 20
+        patch_spy.assert_called_once_with(
+            f"/api/v1/cartas/{carta_existente_id}/modo",
+            json={"modo_limites": "FIXO"},
+        )
+

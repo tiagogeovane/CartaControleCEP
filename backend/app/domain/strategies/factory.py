@@ -2,7 +2,9 @@
 from typing import ClassVar
 
 from app.domain.strategies.base import ICartaControleStrategy
+from app.domain.strategies.c_chart import CartaAtributosCStrategy
 from app.domain.strategies.imr_chart import CartaIMRStrategy
+from app.domain.strategies.p_chart import CartaAtributosPStrategy
 from app.domain.strategies.xr_chart import CartaXRStrategy
 from app.domain.strategies.xs_chart import CartaXsStrategy
 
@@ -23,6 +25,10 @@ class CartaStrategyFactory:
         "I_MR": CartaIMRStrategy,
         "IMR": CartaIMRStrategy,
         "INDIVIDUAL": CartaIMRStrategy,
+        "P": CartaAtributosPStrategy,
+        "CARTA_P": CartaAtributosPStrategy,
+        "C": CartaAtributosCStrategy,
+        "CARTA_C": CartaAtributosCStrategy,
     }
 
     @classmethod
@@ -107,6 +113,12 @@ class CartaStrategyFactory:
                 return cls.resolver_por_tamanho(1)
             if tamanho_subgrupo > 10 and chave in ("X_R", "XR"):
                 return cls.resolver_por_tamanho(tamanho_subgrupo)
+
+        match chave:
+            case "P" | "CARTA_P":
+                return CartaAtributosPStrategy()
+            case "C" | "CARTA_C":
+                return CartaAtributosCStrategy()
 
 
         # 3. Lookup no registry com erro explícito

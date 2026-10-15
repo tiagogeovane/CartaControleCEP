@@ -4,10 +4,14 @@ import {
   Activity,
   BarChart2,
   CheckSquare,
+  ChevronDown,
+  ChevronUp,
+  Dices,
   FileDown,
   FileText,
   Layers,
   Loader2,
+  Lock,
   RotateCcw,
   Sliders,
   Square,
@@ -20,6 +24,7 @@ import {
 } from 'lucide-react'
 import { Badge } from '@/components/common/Badge'
 import { CartaControleContainer, type BaseChartRef } from '@/components/charts'
+import { SimuladorBinomial } from '@/components/modules/SimuladorBinomial'
 import { cartasApi, ingestaoApi } from '@/services/api'
 import { useCEPStore } from '@/stores/cepStore'
 import { useToastStore } from '@/stores/toastStore'
@@ -29,6 +34,7 @@ import {
   type LimitesControleReport,
   type LimitesEspecificacaoReport,
   type SecoesRelatorioPDF,
+  type SimulacaoBinomialReport,
   type SubgrupoReport,
 } from '@/utils/pdfReportGenerator'
 import { formatarNomeCarta } from '@/utils/formatters'
@@ -41,6 +47,8 @@ export function RelatorioPage() {
 
   const [cartaSelecionadaId, setCartaSelecionadaId] = useState<string>('')
   const [isGerando, setIsGerando] = useState(false)
+  const [simulacaoAnexada, setSimulacaoAnexada] = useState<SimulacaoBinomialReport | null>(null)
+  const [mostrarSimulador, setMostrarSimulador] = useState(true)
 
   // Toggles de configuração do que deve ser incluído no relatório
   const [secoes, setSecoes] = useState<SecoesRelatorioPDF>({
@@ -50,28 +58,43 @@ export function RelatorioPage() {
     incluirLimitesEspecificacao: true,
     incluirAnaliseSigmas: true,
     incluirTabelaAmostras: false,
+    incluirSimulacaoBinomial: true,
   })
 
-  // 1. Carregar lista de cartas disponíveis
+  // 1. Carregar lista de cartas disponíveis para o seletor
   const { data: cartas = [], isLoading: carregandoCartas } = useQuery({
     queryKey: ['cartas'],
     queryFn: () => cartasApi.listar(),
-    staleTime: 30000,
+    staleTime: 10000,
   })
 
   // Carta ativa derivada
   const cartaAtivaId = cartaSelecionadaId || storeCartaDetalhes?.id || cartas[0]?.id || ''
-  const cartaDetalhes = useMemo(
-    () => cartas.find((c) => c.id === cartaAtivaId) || storeCartaDetalhes,
-    [cartas, cartaAtivaId, storeCartaDetalhes]
-  )
 
-  // 2. Carregar subgrupos amostrais da carta ativa
+  // 1.1 Carregar dados específicos e atualizados da carta ativa para garantir limites consolidados
+  const { data: cartaAtivaData } = useQuery({
+    queryKey: ['carta', cartaAtivaId],
+    queryFn: async () => {
+      try {
+        return await cartasApi.obterPorId(cartaAtivaId)
+      } catch {
+        return cartas.find((c) => c.id === cartaAtivaId) || storeCartaDetalhes || null
+      }
+    },
+    enabled: Boolean(cartaAtivaId),
+    staleTime: 0,
+  })
+
+  const cartaDetalhes = useMemo(() => {
+    return cartaAtivaData || (storeCartaDetalhes?.id === cartaAtivaId ? storeCartaDetalhes : cartas.find((c) => c.id === cartaAtivaId)) || null
+  }, [cartaAtivaData, storeCartaDetalhes, cartas, cartaAtivaId])
+
+  // 2. Carregar subgrupos amostrais da carta ativa (com histórico completo e sem cache obsoleto)
   const { data: subgrupos = storeSubgrupos, isLoading: carregandoSubgrupos } = useQuery({
     queryKey: ['subgrupos', cartaAtivaId],
-    queryFn: () => ingestaoApi.listarSubgrupos(cartaAtivaId, 100),
+    queryFn: () => ingestaoApi.listarSubgrupos(cartaAtivaId, 500),
     enabled: Boolean(cartaAtivaId),
-    staleTime: 15000,
+    staleTime: 0,
   })
 
   // Normalização de Limites para o Relatório e Diagnóstico
@@ -118,6 +141,7 @@ export function RelatorioPage() {
       incluirLimitesEspecificacao: true,
       incluirAnaliseSigmas: true,
       incluirTabelaAmostras: true,
+      incluirSimulacaoBinomial: true,
     })
   }
 
@@ -129,7 +153,26 @@ export function RelatorioPage() {
       incluirLimitesEspecificacao: true,
       incluirAnaliseSigmas: true,
       incluirTabelaAmostras: false,
+      incluirSimulacaoBinomial: true,
     })
+  }
+
+  const handleAnexarSimulacao = (simulacao: SimulacaoBinomialReport | null) => {
+    setSimulacaoAnexada(simulacao)
+    if (simulacao) {
+      setSecoes((prev) => ({ ...prev, incluirSimulacaoBinomial: true }))
+      adicionarToast({
+        tipo: 'success',
+        titulo: 'Simulação Anexada ao Relatório',
+        mensagem: 'A análise probabilística binomial foi vinculada e será incluída no PDF exportado.',
+      })
+    } else {
+      adicionarToast({
+        tipo: 'info',
+        titulo: 'Simulação Desanexada',
+        mensagem: 'A análise probabilística foi desanexada do relatório.',
+      })
+    }
   }
 
   // Executar a compilação e download do relatório PDF
@@ -168,6 +211,7 @@ export function RelatorioPage() {
         limitesEspecificacao: especificacoesEfetivas,
         imagemGrafico: imagemDataUrl,
         subgrupos: subgruposReport,
+        simulacaoBinomial: secoes.incluirSimulacaoBinomial ? simulacaoAnexada : null,
         secoes,
       })
 
@@ -229,6 +273,12 @@ export function RelatorioPage() {
       descricao: 'Tabela complementar com as últimas medições e violações das Regras de Nelson.',
       icone: Table,
     },
+    {
+      chave: 'incluirSimulacaoBinomial',
+      titulo: 'Simulação Probabilística Binomial',
+      descricao: 'Estimativa de conformidade de sequências consecutivas ou lotes baseada em distribuições binomiais.',
+      icone: Dices,
+    },
   ]
 
   const totalSecoesAtivas = Object.values(secoes).filter(Boolean).length
@@ -281,10 +331,21 @@ export function RelatorioPage() {
                 {cartaDetalhes.tipo_carta}
               </Badge>
               <Badge
-                variant={cartaDetalhes.modo_limites === 'DINAMICO' ? 'dinamico' : 'fixo'}
-                className="text-2xs"
+                data-testid="badge-modo-relatorio"
+                variant={cartaDetalhes.modo_limites === 'FIXO' ? 'fixo' : 'dinamico'}
+                className="text-2xs flex items-center gap-1 font-semibold"
               >
-                {cartaDetalhes.modo_limites === 'DINAMICO' ? 'Limites Dinâmicos' : 'Limites Fixos'}
+                {cartaDetalhes.modo_limites === 'FIXO' ? (
+                  <>
+                    <Lock className="w-3 h-3 text-purple-400" />
+                    <span>Limites Fixos (Acompanhamento)</span>
+                  </>
+                ) : (
+                  <>
+                    <Activity className="w-3 h-3 text-blue-400" />
+                    <span>Limites Dinâmicos (Calibração)</span>
+                  </>
+                )}
               </Badge>
             </div>
           )}
@@ -341,6 +402,61 @@ export function RelatorioPage() {
             <span className="text-3xs text-slate-500 block mt-0.5">Status de capabilidade</span>
           </div>
         </div>
+      </div>
+
+      {/* 2.1 Módulo Expansível: Simulador de Arranjos Probabilísticos (Binomial) */}
+      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl shadow-xs overflow-hidden">
+        <button
+          type="button"
+          onClick={() => setMostrarSimulador((prev) => !prev)}
+          className="w-full flex items-center justify-between p-4 sm:p-5 text-left hover:bg-slate-800/40 transition-colors cursor-pointer"
+        >
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400">
+              <Dices className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm sm:text-base font-bold text-slate-100">
+                  Análise Probabilística Binomial
+                </h2>
+                {simulacaoAnexada ? (
+                  <Badge variant="sob_controle" className="text-3xs">
+                    Análise Vinculada ao PDF
+                  </Badge>
+                ) : (
+                  <Badge variant="neutro" className="text-3xs">
+                    Opcional
+                  </Badge>
+                )}
+              </div>
+              <p className="text-2xs sm:text-xs text-slate-400 mt-0.5">
+                Simule a probabilidade de conformidade de sequências ou lotes e anexe a predição técnica ao relatório.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 text-slate-400">
+            <span className="text-2xs hidden sm:inline-block">
+              {mostrarSimulador ? 'Recolher Simulador' : 'Expandir Simulador'}
+            </span>
+            {mostrarSimulador ? (
+              <ChevronUp className="w-4 h-4" />
+            ) : (
+              <ChevronDown className="w-4 h-4" />
+            )}
+          </div>
+        </button>
+
+        {mostrarSimulador && (
+          <div className="p-4 sm:p-5 pt-0 border-t border-slate-800/80">
+            <SimuladorBinomial
+              carta={cartaDetalhes}
+              simulacaoAnexada={simulacaoAnexada}
+              onAnexarAoRelatorio={handleAnexarSimulacao}
+              unidade={cartaDetalhes?.especificacoes?.valor_nominal ? 'mm' : 'un'}
+            />
+          </div>
+        )}
       </div>
 
       {/* 3. Seção Principal: Painel de Toggles + Painel de Ações */}
@@ -472,6 +588,30 @@ export function RelatorioPage() {
                         <CheckCircle2 className="w-3.5 h-3.5" />
                         Inclusa ({Math.min(subgrupos.length, 25)} pts)
                       </span>
+                    ) : (
+                      <span className="text-slate-500 flex items-center gap-1">
+                        <AlertCircle className="w-3.5 h-3.5" />
+                        Omitida
+                      </span>
+                    )}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between p-2.5 bg-slate-950/60 border border-slate-800/80 rounded-xl">
+                  <span className="text-slate-400">Simulação Binomial:</span>
+                  <span className="font-medium">
+                    {secoes.incluirSimulacaoBinomial ? (
+                      simulacaoAnexada ? (
+                        <span className="text-emerald-400 flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          Anexada ({simulacaoAnexada.tipoArranjo === 'CONSECUTIVO' ? 'Consecutiva' : 'Lote'})
+                        </span>
+                      ) : (
+                        <span className="text-amber-400 flex items-center gap-1">
+                          <AlertCircle className="w-3.5 h-3.5" />
+                          Nenhuma anexada
+                        </span>
+                      )
                     ) : (
                       <span className="text-slate-500 flex items-center gap-1">
                         <AlertCircle className="w-3.5 h-3.5" />

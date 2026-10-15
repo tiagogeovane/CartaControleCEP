@@ -18,6 +18,9 @@ class LimitesControleSchema(BaseModel):
     lsc: float = Field(..., description="Limite Superior de Controle (+3 sigma)")
     lic: float = Field(..., description="Limite Inferior de Controle (-3 sigma)")
     sigma_estimado: float = Field(..., description="Desvio padrão estimado do processo")
+    lc_dispersao: float | None = Field(default=None, description="Linha Central da carta de dispersão")
+    lsc_dispersao: float | None = Field(default=None, description="Limite Superior de Controle da dispersão")
+    lic_dispersao: float | None = Field(default=None, description="Limite Inferior de Controle da dispersão")
 
 
 class CartaControleCreate(BaseModel):

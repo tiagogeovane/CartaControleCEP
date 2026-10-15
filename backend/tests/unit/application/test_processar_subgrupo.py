@@ -12,7 +12,7 @@ from app.domain.interfaces.repositories import (
     ISubgrupoRepository,
 )
 from app.domain.rules.detector import DetectorRegrasNelson
-from app.domain.value_objects.limites import LimitesEspecificacao
+from app.domain.value_objects.limites import LimitesControle, LimitesEspecificacao
 
 
 class InMemoryCartaRepository(ICartaControleRepository):
@@ -54,6 +54,9 @@ class InMemorySubgrupoRepository(ISubgrupoRepository):
         if limite is not None:
             return lista[-limite:]
         return list(lista)
+
+    async def atualizar_violacoes_em_lote(self, subgrupos: Sequence[Subgrupo]) -> None:
+        pass
 
 
 class MockObserver(ISubgrupoObserver):
@@ -242,3 +245,140 @@ async def test_executar_lote_importacao_historica(service, repos, observer):
     # Notificação do último subgrupo processado
     assert len(observer.chamadas) == 1
     assert observer.chamadas[0][1] == subgrupos[-1]
+
+
+@pytest.mark.asyncio
+async def test_processar_subgrupo_anomalia_dispersao(service, repos):
+    carta_repo, subgrupo_repo = repos
+    # Carta com limites fixos onde LSC_R = 0.0464
+    limites = LimitesControle(
+        lc=4.9607,
+        lsc=4.9733,
+        lic=4.9480,
+        sigma_estimado=0.0094,
+        lc_dispersao=0.02195,
+        lsc_dispersao=0.0464,
+        lic_dispersao=0.0,
+    )
+    carta = CartaControle(
+        processo_id=uuid4(),
+        tipo_carta="X_R",
+        tamanho_subgrupo=5,
+        limites_atuais=limites,
+        modo_limites="FIXO",
+    )
+    await carta_repo.salvar(carta)
+
+    # Subgrupo com amplitude R = 4.98 - 4.92 = 0.060 > LSC_R (0.0464), mas média = 4.950 (dentro de [4.9480, 4.9733])
+    amostras = [4.98, 4.92, 4.95, 4.94, 4.96]
+    sub = await service.executar(carta.id, amostras, numero_subgrupo=9)
+
+    assert sub.fora_de_controle is True
+    assert any(v.codigo_regra == "REGRA_1_DISP" for v in sub.violacoes)
+
+
+@pytest.mark.asyncio
+async def test_processar_subgrupo_auto_congelamento_em_acompanhamento(service, repos):
+    carta_repo, subgrupo_repo = repos
+    carta = CartaControle(
+        processo_id=uuid4(),
+        tipo_carta="X_R",
+        tamanho_subgrupo=5,
+        modo_limites="DINAMICO",
+    )
+    await carta_repo.salvar(carta)
+
+    # 1. Calibração com 3 subgrupos em modo DINAMICO
+    amostras_calib = [
+        [4.96, 4.95, 4.94, 4.96, 4.95],
+        [4.95, 4.96, 4.97, 4.95, 4.96],
+        [4.94, 4.95, 4.96, 4.94, 4.95],
+    ]
+    for amostra in amostras_calib:
+        await service.executar(carta.id, amostra, goal="Calibrar")
+
+    carta_calibrada = await carta_repo.obter_por_id(carta.id)
+    assert carta_calibrada.modo_limites == "DINAMICO"
+    limites_calibrados = carta_calibrada.limites_atuais
+    assert limites_calibrados is not None
+    lc_calib = limites_calibrados.lc
+    lsc_calib = limites_calibrados.lsc
+
+    # 2. Envio de subgrupo de acompanhamento
+    amostra_acomp = [5.10, 5.12, 5.11, 5.09, 5.10]  # média bem diferente
+    await service.executar(carta.id, amostra_acomp, goal="Acompanhamento")
+
+    carta_pos_acomp = await carta_repo.obter_por_id(carta.id)
+    # A carta deve ter mudado para FIXO
+    assert carta_pos_acomp.modo_limites == "FIXO"
+    # Os limites de controle devem estar RIGOROSAMENTE congelados (iguais à calibração)
+    assert carta_pos_acomp.limites_atuais.lc == lc_calib
+    assert carta_pos_acomp.limites_atuais.lsc == lsc_calib
+
+
+@pytest.mark.asyncio
+async def test_processar_subgrupo_volta_para_dinamico_em_calibracao(service, repos):
+    carta_repo, subgrupo_repo = repos
+    limites = LimitesControle(
+        lc=4.9600,
+        lsc=4.9800,
+        lic=4.9400,
+        sigma_estimado=0.0100,
+        lc_dispersao=0.0200,
+        lsc_dispersao=0.0400,
+        lic_dispersao=0.0,
+    )
+    carta = CartaControle(
+        processo_id=uuid4(),
+        tipo_carta="X_R",
+        tamanho_subgrupo=5,
+        limites_atuais=limites,
+        modo_limites="FIXO",
+    )
+    await carta_repo.salvar(carta)
+
+    # Subgrupos iniciais
+    await service.executar(carta.id, [4.96, 4.96, 4.96, 4.96, 4.96])
+    await service.executar(carta.id, [4.96, 4.96, 4.96, 4.96, 4.96])
+
+    # Envia dados com goal="Calibrar"
+    await service.executar(carta.id, [5.10, 5.10, 5.10, 5.10, 5.10], goal="Calibrar")
+
+    carta_atualizada = await carta_repo.obter_por_id(carta.id)
+    assert carta_atualizada.modo_limites == "DINAMICO"
+    # Como voltou para DINAMICO, os limites foram recalculados com a nova média
+    assert carta_atualizada.limites_atuais.lc != 4.9600
+
+
+@pytest.mark.asyncio
+async def test_executar_lote_com_goal_acompanhamento_congela_limites(service, repos):
+    carta_repo, subgrupo_repo = repos
+    carta = CartaControle(
+        processo_id=uuid4(),
+        tipo_carta="X_R",
+        tamanho_subgrupo=5,
+        modo_limites="DINAMICO",
+    )
+    await carta_repo.salvar(carta)
+
+    # 1. Calibração inicial
+    amostras_calib = [
+        [4.96, 4.95, 4.94, 4.96, 4.95],
+        [4.95, 4.96, 4.97, 4.95, 4.96],
+    ]
+    await service.executar_lote(carta.id, amostras_calib, goal="Calibrar")
+
+    carta_calib = await carta_repo.obter_por_id(carta.id)
+    lc_calib = carta_calib.limites_atuais.lc
+
+    # 2. Lote de acompanhamento
+    amostras_acomp = [
+        [5.20, 5.20, 5.20, 5.20, 5.20],
+        [5.30, 5.30, 5.30, 5.30, 5.30],
+    ]
+    await service.executar_lote(carta.id, amostras_acomp, goal="Acompanhamento")
+
+    carta_pos = await carta_repo.obter_por_id(carta.id)
+    assert carta_pos.modo_limites == "FIXO"
+    assert carta_pos.limites_atuais.lc == lc_calib
+

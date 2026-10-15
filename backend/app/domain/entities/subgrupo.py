@@ -1,3 +1,4 @@
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from uuid import UUID, uuid4
@@ -37,6 +38,16 @@ class Subgrupo:
         if violacoes:
             self.violacoes.extend(violacoes)
             self.fora_de_controle = True
+
+    def limpar_violacoes(self) -> None:
+        """Limpa as violações registradas e redefine fora_de_controle para False."""
+        self.violacoes = []
+        self.fora_de_controle = False
+
+    def definir_violacoes(self, violacoes: Sequence[ViolacaoRegra]) -> None:
+        """Substitui integralmente as violações do subgrupo e atualiza fora_de_controle."""
+        self.violacoes = list(violacoes)
+        self.fora_de_controle = len(self.violacoes) > 0
 
     def to_dict(self) -> dict:
         """Representação em dicionário serializável."""

@@ -77,3 +77,23 @@ class TestCartaXRStrategy:
     def test_calcular_limites_amplitude_rejeita_historico_vazio(self, strategy: CartaXRStrategy):
         with pytest.raises(ValueError, match="Histórico de dispersões não pode estar vazio"):
             strategy.calcular_limites_amplitude([], n=5)
+
+    def test_calcular_limites_dataset_20_subgrupos_relatorio(self, strategy: CartaXRStrategy):
+        medias = [
+            4.9540, 4.9420, 4.9510, 4.9610, 4.9570, 4.9590, 4.9520, 4.9590, 4.9540, 4.9540,
+            4.9670, 4.9590, 4.9700, 4.9630, 4.9700, 4.9520, 4.9760, 4.9710, 4.9710, 4.9710,
+        ]
+        amplitudes = [
+            0.014, 0.031, 0.042, 0.042, 0.014, 0.018, 0.016, 0.020, 0.056, 0.036,
+            0.016, 0.032, 0.012, 0.016, 0.020, 0.018, 0.010, 0.007, 0.011, 0.008,
+        ]
+        limites = strategy.calcular_limites(medias, amplitudes, n=5)
+
+        assert pytest.approx(limites.lc, abs=1e-4) == 4.9607
+        assert pytest.approx(limites.lsc, abs=1e-4) == 4.9733
+        assert pytest.approx(limites.lic, abs=1e-4) == 4.9480
+        assert pytest.approx(limites.sigma_estimado, abs=1e-4) == 0.0094
+
+        assert pytest.approx(limites.lc_dispersao, abs=1e-5) == 0.02195
+        assert pytest.approx(limites.lsc_dispersao, abs=1e-4) == 0.0464
+        assert limites.lic_dispersao == 0.0

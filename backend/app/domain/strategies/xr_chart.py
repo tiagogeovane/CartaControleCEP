@@ -145,11 +145,17 @@ class CartaXRStrategy(ICartaControleStrategy):
         lic = x_dupla_barra - (a2 * r_barra)
         sigma = r_barra / d2 if d2 > 0 else 0.0
 
+        # Limites da carta R auxiliar: LC_R = R̄, LSC_R = D4·R̄, LIC_R = D3·R̄
+        lic_r, lc_r, lsc_r = self.calcular_limites_amplitude(historico_dispersoes, n)
+
         return LimitesControle(
             lc=x_dupla_barra,
             lsc=lsc,
             lic=lic,
             sigma_estimado=sigma,
+            lc_dispersao=lc_r,
+            lsc_dispersao=lsc_r,
+            lic_dispersao=lic_r,
         )
 
     def calcular_limites_amplitude(

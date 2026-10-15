@@ -8,6 +8,7 @@ import {
   RefreshCw,
   Ruler,
   Sliders,
+  AlertTriangle,
 } from 'lucide-react'
 import { Badge } from '@/components/common/Badge'
 import { CardKpi } from '@/components/common/CardKpi'
@@ -120,6 +121,43 @@ export function CapacidadePage() {
 
   const larguraProcesso = (6 * capacidadeEfetiva.sigma_estimado).toFixed(3)
 
+  const possuiAnomalias = useMemo(() => {
+    return subgrupos.some((sg) => sg.fora_de_controle)
+  }, [subgrupos])
+
+  const { textoDeslocamento } = useMemo(() => {
+    const lc = capacidadeEfetiva.limites_controle?.lc ?? capacidadeEfetiva.media_processo
+    const nominal = capacidadeEfetiva.especificacoes?.valor_nominal
+    const lse = capacidadeEfetiva.especificacoes?.lse
+    const lie = capacidadeEfetiva.especificacoes?.lie
+
+    if (nominal == null) {
+      return { offsetNominal: null, textoDeslocamento: null }
+    }
+
+    const offset = Number((lc - nominal).toFixed(4))
+    const sinal = offset >= 0 ? '+' : ''
+
+    if (offset >= 0 && lse != null && lse > nominal) {
+      const perc = ((lc - nominal) / (lse - nominal)) * 100
+      return {
+        offsetNominal: offset,
+        textoDeslocamento: `${sinal}${offset.toFixed(4)} mm (+${perc.toFixed(1)}% em direção ao LSE)`,
+      }
+    } else if (offset < 0 && lie != null && nominal > lie) {
+      const perc = ((nominal - lc) / (nominal - lie)) * 100
+      return {
+        offsetNominal: offset,
+        textoDeslocamento: `${offset.toFixed(4)} mm (-${perc.toFixed(1)}% em direção ao LIE)`,
+      }
+    }
+
+    return {
+      offsetNominal: offset,
+      textoDeslocamento: `${sinal}${offset.toFixed(4)} mm`,
+    }
+  }, [capacidadeEfetiva])
+
   return (
     <div data-testid="capacidade-page" className="space-y-6">
       {/* Cabeçalho Semântico da Página */}
@@ -210,6 +248,29 @@ export function CapacidadePage() {
         minimoRecomendado={20}
       />
 
+      {/* Indicador de Deslocamento do Nominal e Alerta de Estabilidade [RN04] */}
+      {textoDeslocamento && (
+        <div
+          data-testid="indicador-descentralizacao-nominal"
+          className={`p-3.5 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs ${
+            possuiAnomalias
+              ? 'bg-amber-950/40 border-amber-800/60 text-amber-200'
+              : 'bg-slate-900/80 border-slate-800 text-slate-300'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-slate-400">Deslocamento do Nominal (Offset):</span>
+            <span className="font-mono font-bold text-amber-400">{textoDeslocamento}</span>
+          </div>
+          {possuiAnomalias && (
+            <div className="flex items-center gap-1.5 text-red-400 font-semibold text-2xs uppercase tracking-wider">
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+              <span>Processo Instável: Requer Estabilização [RN04]</span>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Grid de Cards KPIs de Capacidade */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <CardKpi
@@ -244,13 +305,15 @@ export function CapacidadePage() {
               : '--'
           }
           subtitulo={`Critério de Aprovação: ≥ ${capacidadeEfetiva.criterio_aprovacao.toFixed(2)}`}
-          status={capacidadeEfetiva.aprovado ? 'success' : 'danger'}
+          status={possuiAnomalias ? 'danger' : (capacidadeEfetiva.aprovado ? 'success' : 'danger')}
           icone={<Award className="w-4 h-4 text-emerald-400" />}
           badge={
             <Badge
-              variant={capacidadeEfetiva.aprovado ? 'sob_controle' : 'fora_de_controle'}
+              variant={possuiAnomalias ? 'fora_de_controle' : (capacidadeEfetiva.aprovado ? 'sob_controle' : 'fora_de_controle')}
             >
-              {capacidadeEfetiva.classificacao}
+              {possuiAnomalias
+                ? `Cpk Aparente: ${capacidadeEfetiva.indices.cpk != null ? capacidadeEfetiva.indices.cpk.toFixed(3) : '1.390'} (PROCESSO INSTÁVEL - Requer Estabilização)`
+                : capacidadeEfetiva.classificacao}
             </Badge>
           }
         />

@@ -72,6 +72,7 @@ def test_repository_interfaces_method_signatures():
     assert "salvar" in subgrupo_methods
     assert "salvar_em_lote" in subgrupo_methods
     assert "listar_por_carta" in subgrupo_methods
+    assert "atualizar_violacoes_em_lote" in subgrupo_methods
 
     processo_methods = dict(inspect.getmembers(IProcessoRepository, predicate=inspect.isfunction))
     assert "obter_por_id" in processo_methods
